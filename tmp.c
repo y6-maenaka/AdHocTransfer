@@ -5,15 +5,16 @@
 #include <stdlib.h>
 
 
-#define DIGEST_NAME "sha512"
+#define DIGEST_NAME "sha256"
 
 int main(){
 	EVP_MD_CTX *mdctx;
 	const EVP_MD *md;
 	unsigned char md_value[EVP_MAX_MD_SIZE];
 	int md_len;
-	char mess[] = "Test\n";
+	char mess[] = "hello";
 
+	/*
 
 	FILE *fp;
 	char filename[] = "UploadFolder/sample_video.mp4";
@@ -26,6 +27,8 @@ int main(){
 	
 
 	fclose(fp);
+
+	*/
 
 
 

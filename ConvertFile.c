@@ -2,34 +2,39 @@
 #include "SHAHash.h"
 
 void FileToBlock(char *uploadFileName){
-	char inputBuffer[BLOCKSIZE];
-	unsigned char digestMessage[SHA256SIZE];
-	char writeBlock[SHA256SIZE + BLOCKSIZE];
-	FILE *upload_fp = fopen(uploadFileName, "rb");
-	FILE *block_fp = fopen("BlockFolder/sample_image.ablock","wb");
-	size_t _readedSize;
 
+	// digestMessageの後にbodyMessageが格納される
+	char inputBuffer[BLOCKSIZE];
+	unsigned char digestMessage[EVP_MAX_MD_SIZE]={0};
+	// char writeBlock[EVP_MAX_MD_SIZE + BLOCKSIZE];
+	FILE *upload_fp = fopen(uploadFileName, "rb");
+	FILE *block_fp = fopen("BlockFolder/sample_video.ablock","wb");
+	size_t _readedSize;
+	Block block={0};
 
 	for(;;){
 		// Reach the end of the file
-		puts("before");
-		if ( ( _readedSize = fread(inputBuffer, 1, BLOCKSIZE, upload_fp )) < BLOCKSIZE ){
-			puts("in");
-			sha256Hash(inputBuffer, digestMessage);
-			sprintf(writeBlock,"%s%s",digestMessage,inputBuffer);
-			fwrite(writeBlock, 1, SHA256SIZE + _readedSize, block_fp);
+		if ( ( _readedSize = fread(block.bodyContext, 1, BLOCKSIZE, upload_fp )) < BLOCKSIZE ){
+			sha512Hash(block.bodyContext, block.digestMessage, _readedSize);
+
+			/*
+			sprintf(writeBlock,"%s%s",digestMessage,block.bodyContext);
+			fwrite(writeBlock, 1, EVP_MAX_MD_SIZE + _readedSize, block_fp);
+			*/
+
+			fwrite(block.digestMessage, 1, EVP_MAX_MD_SIZE, block_fp);
+			fwrite(block.bodyContext, 1, _readedSize,  block_fp);
 			break;
 		}
-		puts("after");
 
-		// get digest message
-		sha256Hash(inputBuffer, digestMessage);
+		sha512Hash(block.bodyContext, block.digestMessage, _readedSize); // get digest message
 
-		puts("+++++++++++++");
-		sprintf(writeBlock,"%s%s",digestMessage,inputBuffer);
-		puts("-------------");
-
-		fwrite(writeBlock, 1, SHA256SIZE + BLOCKSIZE, block_fp);
+		/*
+		sprintf(writeBlock,,"%s%s",digestMessage, block.bodyContext);
+		fwrite(writeBlock, 1, EVP_MAX_MD_SIZE + _readedSize, block_fp);
+		*/
+		fwrite(block.digestMessage, 1, EVP_MAX_MD_SIZE,  block_fp);
+		fwrite(block.bodyContext, 1, _readedSize, block_fp);
 	}
 
 	fclose(upload_fp);
@@ -38,39 +43,25 @@ void FileToBlock(char *uploadFileName){
 
 
 void BlockToFile(char *blockFileName){
-	FILE *block_fp = fopen("BlockFolder/sample_image.ablock","rb");
-	FILE *download_fp = fopen("DownloadFolder/sample_image.png","wb");
+	FILE *block_fp = fopen("BlockFolder/sample_video.ablock","rb");
+	FILE *download_fp = fopen("DownloadFolder/sample_video.mp4","wb");
 	size_t _readedSize;
-	char inputBuffer[BLOCKSIZE + SHA256SIZE];
-	char readedBlock[BLOCKSIZE];
-	unsigned char readedDigestMessage[SHA256SIZE];
+	//char inputBuffer[BLOCKSIZE + EVP_MAX_MD_SIZE];
+	char readedBlock[BLOCKSIZE]={0};
+	unsigned char readedDigestMessage[EVP_MAX_MD_SIZE]={0};
 
-	size_t _readedDigestMessageSize, _readedBLOCKSIZE;
+	size_t _readedDigestMessageSize, _readedBlockSize;
 
 	for(;;){
-		_readedDigestMessageSize = fread(readedDigestMessage, 1, SHA256SIZE, block_fp);
+		_readedDigestMessageSize = fread(readedDigestMessage, 1, EVP_MAX_MD_SIZE, block_fp);
 
-		if (( _readedBLOCKSIZE = fread(readedBlock, 1, BLOCKSIZE, block_fp) < BLOCKSIZE )){
-			fwrite(readedBlock, 1, _readedBLOCKSIZE, download_fp);
+		if (( _readedBlockSize = fread(readedBlock, 1, BLOCKSIZE, block_fp) < BLOCKSIZE )){
+			fwrite(readedBlock, 1, _readedBlockSize, download_fp);
 			break;
 		}
-
+		
 		fwrite(readedBlock, 1, BLOCKSIZE, download_fp);
 	}
-
-
-	/*
-	for(;;){
-		if ( ( _readedSize = fread(inputBuffer, 1, BLOCKSIZE + SHA256SIZE, block_fp)) < (BLOCKSIZE + SHA256SIZE) ){
-			sscanf(inputBuffer,"%s%s",readedDigestMessage,readedBlock);
-			fwrite(readedBlock, 1, _readedSize, download_fp);
-			break;
-		}
-
-		sscanf(inputBuffer,"%s%s",readedDigestMessage,readedBlock);
-		fwrite(readedBlock, 1, BLOCKSIZE, download_fp);
-	}
-	*/
 
 	fclose(block_fp);
 	fclose(download_fp);

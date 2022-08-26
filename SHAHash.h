@@ -6,7 +6,9 @@
 #include <string.h>
 
 #define DIGEST_NAME_SHA256 "sha256"
+#define DIGEST_NAME_SHA512 "sha512"
 
-int sha256Hash(char *plainContext, unsigned char *digestMessage);
+int sha512Hash(char *plainContext, unsigned char *digestMessage, unsigned int plainContextSize);
+//unsigned char sha512Hash(char *plainContext);
 
 #endif // _H_SHAHash_
