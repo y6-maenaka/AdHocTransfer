@@ -16,10 +16,16 @@ int main(){
 
 	printf("%d\n", rcvBufferSize);
 
-	tmp = getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &rcvBufferSize , &sockOptSize);
+	//tmp = getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &rcvBufferSize , &sockOptSize);
 
 	puts("+++++++++++++++");
-	printf("%d",rcvBufferSize);
+	//printf("%d",rcvBufferSize);
+
+	struct sockaddr_in servAddr;
+
+	puts("=========");
+	printf("%lu",sizeof(servAddr.sin_addr.s_addr));
+
 
 	
 }

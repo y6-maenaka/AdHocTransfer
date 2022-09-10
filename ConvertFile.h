@@ -15,8 +15,24 @@
 #define BLOCKEXTENSIONSIZE 7
 #define BLOCKFOLDERNAMESIZE 12
 
+#define UPLOAD_FOLDER_PATH "UploadFolder/"
+#define DOWNLOAD_FOLDER_PATH "DownloadFolder/"
+#define BLOCK_FOLDER_PATH "BlockFolder/"
+#define KEY_FOLDER_PATH "KeyFolder/"
+
+#define BLOCK_EXTENSION ".ablock"
+#define KEY_EXTENSION ".akey"
+
+#define BLOCK_FOLDER_PATH_SIZE 12 // n(BlockFolder/)
+#define BLOCK_EXTENSION_SIZE 7 // n(.ablock)
+
+#define KEY_FOLDER_PATH_SIZE  10 // n(KeyFolder/)
+#define KEY_EXTENSION_SIZE 5 // n(.akey)
+
+#define UPLOAD_FOLDER_PATH_SIZE 13 // n(UploadFolder/)
+
 typedef struct BLOCK{
-	char bodyContext[64512];
+	char bodyContent[64512];
 	unsigned char digestMessage[64];
 }Block;
 
@@ -33,12 +49,18 @@ typedef struct BLOCKKEY{
 }BlockKey;
 
 
-void FileToBlock(char *_uploadFileName);
-void BlockToFile(char *blockFileName);
-void CreateKeyFile(unsigned char *allDigestMessage, BlockKey key, char *_uploadFileName, char *_convertingFileName, size_t keySize, unsigned int blockSize);
-void GetConvertingFileName(uuid_string_t uuidFileNameString);
-void WriteToBlockFile(Block block, size_t _readedSize, FILE *block_fp, unsigned char *_digestMessage);
 
-int CheckBlock(unsigned char *readedDigestMessage, char *readedBlock, unsigned int readedDigestMessageSize);
+void FileToBlock(char *uploadFileName);
+void BlockToFile(char *blockFileName);
+void CreateKeyFile(unsigned char *hashedwholeDigestMessage, BlockKey key, char *uploadFileName, char *convertingFileName, size_t keySize, unsigned int blockSize);
+void WriteToBlockFile(Block block, size_t readedSize, FILE *block_fp, unsigned char *digestMessage);
+
+int CheckBlock( Block block, size_t readedBlockSize );
+
+void ConvertFileToBlockDone(char *convertingFileName, char *_convertingFileName, size_t fileNameSize);
+
+void AESEncryptFile(char *filePath);
+void AESDecryptFile(char *filePath);
+
 
 #endif // _H_ConvertFile_

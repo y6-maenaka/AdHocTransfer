@@ -2,9 +2,11 @@
 
 
 int ClientConnection(char *servIP, unsigned short servPort){
+
 	int sock;
 	struct sockaddr_in servAddr;
 	struct sigaction handler;
+	PeerInformation PeerInf;
 
 	if (( sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 		ConnectionErrorHandling("socket creating failure");
@@ -17,6 +19,8 @@ int ClientConnection(char *servIP, unsigned short servPort){
 	// IPAddrから汎用Addrにキャスト
 	if( connect(sock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
 		ConnectionErrorHandling("connect failure");
+
+	PeerInf.TCPPeerSock = sock;
 
 	// 非同期I/O設定 =======================================
 
@@ -65,11 +69,15 @@ int ClientConnection(char *servIP, unsigned short servPort){
 	return sock;
 }
 
+
+
 int ServerConnection(unsigned short servPort){
+
 	int servSock , clntSock;
 	struct sockaddr_in servAddr;
 	struct sockaddr_in clntAddr;
 	struct sigaction handler;
+	PeerInformation PeerInf;
 
 	if (( servSock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 		ConnectionErrorHandling("socket creating failure");
@@ -90,6 +98,9 @@ int ServerConnection(unsigned short servPort){
 	// 許可したらsocketを複製
 	if (( clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen)) < 0)
 		ConnectionErrorHandling("accept failure");
+
+	PeerInf.TCPPeerSock = clntSock;
+	memcpy(PeerInf.PeerIP, &(clntAddr.sin_addr.s_addr), 4);
 
 	// setting signal(SIGIO) =======================
 
@@ -117,6 +128,8 @@ int ServerConnection(unsigned short servPort){
 
 }
 
+
+
 void ConnectionErrorHandling(char *errorMessage){
 	perror(errorMessage);
 	exit(1);
@@ -131,3 +144,69 @@ void SendCommand(){
 	printf("here is send command function");
 }
 
+
+void GetSocketQSize(int sock, int *SendQSize, int *RecvQSize){
+	
+	unsigned int sendQOptLen = sizeof(SendQSize);
+	unsigned int recvQOptLen = sizeof(RecvQSize);
+	getsockopt( sock, SOL_SOCKET, SO_SNDBUF, SendQSize , &sendQOptLen );
+	getsockopt( sock, SOL_SOCKET, SO_RCVBUF, RecvQSize , &recvQOptLen );
+
+};
+
+
+
+void ReceiveCommand(int sock){
+	
+	char buf[1];
+	unsigned char controlMessage[ COMMAND_LENGTH + FILE_SIZE_LENGTH ];
+	int command;
+	size_t fileSize;
+	unsigned char *file;
+	struct sigaction TimeOutSIG;
+
+	TimeOutSIG.sa_handler = ReceiveCommandTimeOut;
+	// 全てマスクする
+	if ( sigfillset( &TimeOutSIG.sa_mask) < 0 )
+		ConnectionErrorHandling(" sigfillset() failure");
+
+	// シグナル設定
+	if ( sigaction( SIGALRM, &TimeOutSIG, 0) < 0 )
+		ConnectionErrorHandling(" sigaction() failure");
+
+	for(;;){
+
+		alarm(TIMEOUT_SECS); // timeout設定
+		recv(sock, buf, 1, 0); // timeout設定
+															// timeout -> break;
+		if ( *buf == 37 ){
+			recv( sock, controlMessage, sizeof(controlMessage) , 0);
+			if( errno == EINTR )
+				// SIGALRMが送信される(or error)とrecvは-1を返す。
+				break;
+
+			memcpy(&command, controlMessage, sizeof(command));
+			memcpy(&fileSize, controlMessage + sizeof(command), sizeof(fileSize));
+
+			if( fileSize != 0){
+				file = calloc( 1, fileSize);
+				recv( sock , file, fileSize, 0);
+			}
+
+			file = NULL;
+
+			HandleCommand( command, fileSize, file);
+		}
+	}
+
+	// callocをfreeする
+	
+};
+
+
+void HandleCommand(const int controlMessage, const int fileSize, unsigned char *file){};
+
+
+void ReceiveCommandTimeOut(){
+	printf("ControlMessage empty");
+};

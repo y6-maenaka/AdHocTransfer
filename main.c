@@ -3,61 +3,110 @@
 #include "ControlFile.h"
 #include <stdio.h>
 
-#define KEYSIZE 37
+#define KEYSIZE 16
 
 
 int main(int argc, char *argv[]){
-	//char fileName[] = "sample_image.png";
+	//char fileName[] = "sample_video.mp4";
 	//FileToBlock(fileName);
 
-	//char fileName[] = "BlockFolder/sample_image.ablok";
+	//char fileName[] = "sample_image.ablok";
 	//BlockToFile(fileName);
+	
+	//AESEncryptFile("BlockFolder/%42FDC580-EA82-4867-8B76-BFF1506085BD.ablock");
+	//AESDecryptFile("BlockFolder/%42FDC580-EA82-4867-8B76-BFF1506085BD.ablock");
 
+	
 	/*
-	const char key[16] = "abcdefghijklmnop";
-	const char cryptData[] = "hello, OpenSSL! 123456789012345\0";
-	const unsigned char iv[16] = "abcdefghijklmnop";
-	unsigned char encodeData[64] = {'\0'};
+	char key[16] = "abcdefghijklmnop";
+	char cryptData[] = "hello, OpenSSL! 123456789012345";
+	unsigned char iv[16] = "abcdefghijklmnop";
 	char decodeData[64] = {'\0'};
 
-	AESEncrypt(key , cryptData, sizeof(cryptData), iv, encodeData, sizeof(encodeData));
-	AESDecrypt(key, encodeData, sizeof(encodeData), iv, decodeData, sizeof(decodeData));
+	unsigned char *sample;
+	char *_sample;
 
-	//printf("%s\n",encodeData);
-	//printf("%s",decodeData);
-	*/
-
-	uuid_t _u;
-	uuid_generate(_u);
-	printf("%lu\n",sizeof(_u));
-
-	for(int i=0; i < sizeof(_u); i++)
-		printf("%c",_u[i]);
-
-	uuid_t uuid;
-	GenerateUUID(uuid);
-
-	//for(int i=0; i< UUIDSIZE; i++)
-		//printf("%x",uuid[i]);
+	//datasize = datasize + ( blocksize - (datasize % block_size))
 	
-	//FILE *config_fp = fopen("config/AdHocTransfer.aconf","w");
-	char tmp[64];
-	sprintf(tmp,"KEY:%s",uuid);
-	//printf("%s",tmp);
-	//fwrite(tmp,sizeof(tmp),1 ,config_fp);
+	size_t dataSize = sizeof(cryptData) + ( AES_BLOCK_SIZE - (sizeof(cryptData) % AES_BLOCK_SIZE));
 
-	//printf("%s",key);
 
-	//uuid_t uuid;
-	//GenerateUUID(uuid);
+		
+	sample = malloc(GetAESDecryptedDataSize(sizeof(cryptData)));
+	_sample = malloc(dataSize);
+
+	int tmp = AESEncrypt(key , cryptData, sizeof(cryptData),iv, sample);
+	int _tmp = AESDecrypt(key, sample, dataSize, iv, _sample);
+
+
+	for(int i=0; i<dataSize; i++) printf("%c",sample[i]);
+
+	//printf("%s",_sample);
+
+	free(sample);
+	free(_sample);
+	*/	
 
 	/*
-	uuid_string_t uuid_string;
-	GenerateUUIDString(uuid_string);
-	printf("%s\n",uuid_string);
-	printf("%lu",sizeof(uuid_string));
+	for(int i=0; i < sizeof(_u); i++)
+		printf("%c",_u[i]);
 	*/
+
+	/*	
+	uuid_t uuid;
+	GenerateUUID(uuid); // 128bit 32words
+
 	
+	FILE *config_fp;
+	char key[sizeof(uuid)] = {0};
+
+	memcpy(key, (char *)uuid, sizeof(uuid));
+
+	if( (config_fp = fopen("config/.AdHocTransfer.aconf","rb")) ){
+		fread(key, sizeof(uuid), 1, config_fp);
+		printf("%s\n",key);
+
+	}else{
+		config_fp = fopen("config/.AdHocTransfer.aconf","wb");
+		fwrite(key, sizeof(uuid), 1, config_fp );
+	}
+
+	fclose(config_fp);
+	*/
+
+
+	//LoadConfig();
+	
+
+	/* ======= RSA =============================
+
+	EVP_PKEY *pkey = NULL;	
+	//GenerateRSAPrivateKey(pkey);
+	
+	unsigned char sampleMess[23] = "This is Sample Message";
+	unsigned char *tmp;
+	unsigned char *_tmp;
+
+	size_t outLength, _outLength;
+
+	
+	pkey = ReadRSAPublicKey();
+	tmp = RSAEncrypt(pkey, sampleMess, sizeof(sampleMess), &outLength);
+
+
+
+	printf("%s\n",tmp);
+
+	puts("+++++++++++++++==");
+	EVP_PKEY *_pkey = NULL;
+	_pkey = ReadRSAPrivateKey();
+	_tmp = RSADecrypt(_pkey, tmp, outLength, &_outLength );
+
+	printf("%s",_tmp);
+
+	OPENSSL_free(tmp);
+
+	============================================================ */
 
 }
 
