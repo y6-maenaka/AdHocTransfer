@@ -36,11 +36,12 @@ void FileToBlock(char *uploadFileName){
 
 
 	// Generate temporary file name
-	uuid_string_t _convertingFileName;
+	char _convertingFileName[37];
 	GenerateUUIDString(_convertingFileName);
+	_convertingFileName[36] = '\0';
+
 	char convertingFileName[BLOCK_FOLDER_PATH_SIZE + 1 + 1 + sizeof(_convertingFileName) + BLOCK_EXTENSION_SIZE ];
 	sprintf(convertingFileName,"%s.%%%s%s",BLOCK_FOLDER_PATH, _convertingFileName, BLOCK_EXTENSION);
-
 
 	FILE *block_fp = fopen(convertingFileName, "wb");
 	if ( block_fp == NULL ){
@@ -81,7 +82,7 @@ void FileToBlock(char *uploadFileName){
 
 
 void BlockToFile(char *blockFileName){
-	FILE *block_fp = fopen("BlockFolder/%42FDC580-EA82-4867-8B76-BFF1506085BD.ablock", "rb");
+	FILE *block_fp = fopen("BlockFolder/%B7995EFC-A713-4250-B2B9-600B9C9E3A98.ablock", "rb");
 	FILE *download_fp = fopen("DownloadFolder/sample_video.mp4", "wb");
 	Block block;
 

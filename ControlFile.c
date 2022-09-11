@@ -21,10 +21,11 @@ void GenerateUUID(uuid_t uuid){
 }
 
 
-void GenerateUUIDString(uuid_string_t uuidFileNameString){
+void GenerateUUIDString(char *uuidFileNameString){
 
 	uuid_t uuidFileName;
 	uuid_generate(uuidFileName);
+
 	uuid_unparse_upper(uuidFileName, uuidFileNameString);
 
 }

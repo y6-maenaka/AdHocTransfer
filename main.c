@@ -7,14 +7,27 @@
 
 
 int main(int argc, char *argv[]){
+
+	uuid_t u0;
+	uuid_generate(u0);
+
+	char c0[36];
+	uuid_unparse(u0,c0);
+
+
+	//char servIP[11] = "192.168.0.6";
+	//unsigned short servPort = 8080;
+	//ClientConnection(servIP, servPort);
+
+
 	//char fileName[] = "sample_video.mp4";
 	//FileToBlock(fileName);
 
-	//char fileName[] = "sample_image.ablok";
-	//BlockToFile(fileName);
+	char fileName[] = "sample_image.ablok";
+	BlockToFile(fileName);
 	
-	//AESEncryptFile("BlockFolder/%42FDC580-EA82-4867-8B76-BFF1506085BD.ablock");
-	//AESDecryptFile("BlockFolder/%42FDC580-EA82-4867-8B76-BFF1506085BD.ablock");
+	//AESEncryptFile("BlockFolder/%B7995EFC-A713-4250-B2B9-600B9C9E3A98.ablock");
+	//AESDecryptFile("BlockFolder/%B7995EFC-A713-4250-B2B9-600B9C9E3A98.ablock");
 
 	
 	/*

@@ -11,7 +11,7 @@
 
 long int GetFileSize(FILE *fp);
 void GenerateUUID(uuid_t uuid);
-void GenerateUUIDString(uuid_string_t uuidFileNameString);
+void GenerateUUIDString(char *uuidFileNameString);
 void LoadConfig();
 
 
