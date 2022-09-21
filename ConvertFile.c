@@ -3,6 +3,9 @@
 #include "ControlFile.h"
 
 
+char AESKey[AES_KEY_SIZE];
+
+
 void FileToBlock(char *uploadFileName){
 
 	char readBuffer[BLOCKSIZE];
@@ -16,10 +19,11 @@ void FileToBlock(char *uploadFileName){
 
 	Block block = {0};
 	BlockKey key = {0};
+	//key.block_flags = calloc( BLOCK_FLAGS_SIZE, 1);
 
 
 	// Generate Upload File Path
-	sprintf(uploadFilePath,"%s%s", UPLOAD_FOLDER_PATH,uploadFileName);
+	sprintf(uploadFilePath,"%s%s", UPLOAD_FOLDER_PATH, uploadFileName);
 
 	FILE *upload_fp = fopen( uploadFilePath, "rb" );
 	if(upload_fp == NULL){
@@ -28,52 +32,57 @@ void FileToBlock(char *uploadFileName){
 	}
 
 	fileSize = GetFileSize( upload_fp );
-	key.blockSize = fileSize;
+	key.originalFileSize = fileSize;
 
 	wholeDigestMessageNum = (int)ceil( (double)fileSize / BLOCKSIZE );
+
+	// 分割（block)ファイル数の書き込み
+	key.blockNum = wholeDigestMessageNum;
+
 	// EVP_MAX_MD_SIZE = SHA512 hash size
 	_wholeDigestMessage = malloc( wholeDigestMessageNum * EVP_MAX_MD_SIZE );
 
+	char temporaryName[37];
+	GenerateUUIDString(temporaryName);
+	temporaryName[36] = '\0';
 
-	// Generate temporary file name
-	char _convertingFileName[37];
-	GenerateUUIDString(_convertingFileName);
-	_convertingFileName[36] = '\0';
-
-	char convertingFileName[BLOCK_FOLDER_PATH_SIZE + 1 + 1 + sizeof(_convertingFileName) + BLOCK_EXTENSION_SIZE ];
-	sprintf(convertingFileName,"%s.%%%s%s",BLOCK_FOLDER_PATH, _convertingFileName, BLOCK_EXTENSION);
-
-	FILE *block_fp = fopen(convertingFileName, "wb");
-	if ( block_fp == NULL ){
-		fprintf(stderr,"can not open new block file");
-		exit(1);
-	}
-
+	char temporaryFileName[ BLOCK_FOLDER_PATH_SIZE + 1 + sizeof(temporaryName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION) ];
+	FILE *block_fp = NULL;
 
 	int counter = 0;
 	for(;;){
-		if ( (_readedSize = fread( block.bodyContent, 1, BLOCKSIZE, upload_fp)) < BLOCKSIZE ){
+		sprintf(temporaryFileName, "%s%%%s(%d)%s", BLOCK_FOLDER_PATH, temporaryName, counter + 1, BLOCK_EXTENSION);
 
-			WriteToBlockFile(block, _readedSize, block_fp, _digestMessage);
-			memcpy(_wholeDigestMessage + (counter * EVP_MAX_MD_SIZE), _digestMessage , EVP_MAX_MD_SIZE);
-			break;
-
+		block_fp = fopen(temporaryFileName, "wb");
+		if( block_fp == NULL ){
+			fprintf(stderr,"can not open new block file");
+			exit(1);
 		}
 
-		WriteToBlockFile(block, _readedSize, block_fp, _digestMessage);
+		if ( (_readedSize = fread( block.bodyContent, 1, BLOCKSIZE, upload_fp)) < BLOCKSIZE ){
+			WriteToBlockFile( block, _readedSize, block_fp, _digestMessage, key.blockFlags, counter);
+			fclose( block_fp );
+			memcpy(_wholeDigestMessage + (counter * EVP_MAX_MD_SIZE), _digestMessage , EVP_MAX_MD_SIZE);
+			break;
+		}
+
+		WriteToBlockFile( block, _readedSize, block_fp, _digestMessage, key.blockFlags, counter);
+		fclose( block_fp );
 		memcpy(_wholeDigestMessage + (counter * EVP_MAX_MD_SIZE), _digestMessage, EVP_MAX_MD_SIZE);
 
 		counter += 1;
 	}
 
+	key.blockNum = counter + 1;
+
+
 	sha512Hash( (char *)_wholeDigestMessage, hashedWholeDigestMessage, (wholeDigestMessageNum * EVP_MAX_MD_SIZE) );
 
 	free(_wholeDigestMessage);
 
-	CreateKeyFile( hashedWholeDigestMessage, key, uploadFileName, _convertingFileName, sizeof(key) , fileSize);
+	CreateKeyFile( hashedWholeDigestMessage, key, uploadFileName, temporaryName, sizeof(key) , fileSize);
 
-	ConvertFileToBlockDone(convertingFileName, _convertingFileName, sizeof(_convertingFileName));
-
+	//ConvertFileToBlockDone(temporaryFileName, _temporaryFileName, sizeof(_temporaryFileName));
 
 	fclose(upload_fp);
 	fclose(block_fp);
@@ -82,39 +91,60 @@ void FileToBlock(char *uploadFileName){
 
 
 void BlockToFile(char *blockFileName){
-	FILE *block_fp = fopen("BlockFolder/%B7995EFC-A713-4250-B2B9-600B9C9E3A98.ablock", "rb");
-	FILE *download_fp = fopen("DownloadFolder/sample_video.mp4", "wb");
+
 	Block block;
+	BlockKey key;	
+	FILE *blockKey_fp = NULL;
+	char blockKeyBuffer[sizeof(key)];
 
-	if ( block_fp == NULL || download_fp == NULL ){
-		fprintf(stderr,"can not open file");
-		exit(1);
-	}
+	blockKey_fp = fopen("KeyFolder/sample_video.mp4.akey", "rb");
+	fread( blockKeyBuffer, sizeof(key), 1, blockKey_fp);
+	fclose(blockKey_fp);
 
-	size_t _readedSize;
-	char readedBlock[BLOCKSIZE] = {0};
-	unsigned char readedDigestMessage[EVP_MAX_MD_SIZE] = {0};
+	FormatBlockKey( blockKeyBuffer, &key);
 
-	size_t _readedDigestMessageSize, _readedBlockSize;
 
-	int tmp = 0;
 
-	int counter = 0;
-	for(;;){
-		_readedDigestMessageSize = fread( block.digestMessage, 1, EVP_MAX_MD_SIZE, block_fp );
+	FILE *block_fp = NULL;
+	char blockFilePath[ BLOCK_FOLDER_PATH_SIZE + 1 + sizeof(key.blockName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION_SIZE) + 1];
 
-		if (( _readedBlockSize = fread( block.bodyContent, 1, BLOCKSIZE, block_fp ) < BLOCKSIZE )){
-			CheckBlock( block, _readedBlockSize );
-			fwrite( block.bodyContent, 1, _readedBlockSize, download_fp );
-			break;
+	unsigned char *readedBlock;
+	size_t encryptBlockSize = GetAESEncryptedDataSize( BLOCKSIZE + EVP_MAX_MD_SIZE );
+	readedBlock = malloc( encryptBlockSize );
+	char *decryptBlock;
+	decryptBlock = malloc( BLOCKSIZE + EVP_MAX_MD_SIZE );
+
+	FILE *download_fp = fopen("DownloadFolder/sample_video.mp4", "wb");
+
+	for(int i=0; i < key.blockNum; i++){
+		sprintf(blockFilePath ,"%s%%%s(%d)%s",BLOCK_FOLDER_PATH, key.blockName, i+1, BLOCK_EXTENSION);
+
+		block_fp = fopen( blockFilePath, "rb");
+
+		if ( block_fp == NULL ){
+			puts("continue with no file");
+			continue;
 		}
 
-		tmp = CheckBlock( block , _readedBlockSize );
-		printf("%d",tmp);
-		fwrite( block.bodyContent, 1, BLOCKSIZE, download_fp );
-		counter += 1;
+		else{
+			fread( readedBlock, encryptBlockSize , 1 , block_fp);
+			AESDecrypt( AESKey, readedBlock, encryptBlockSize, NULL, decryptBlock );
+			memcpy( block.digestMessage , decryptBlock, EVP_MAX_MD_SIZE);
+			memcpy( block.bodyContent, decryptBlock + EVP_MAX_MD_SIZE, BLOCKSIZE );
+
+			// 最後のファイルは書き込みバイト数が異なる
+			if ( i != key.blockNum - 1){
+				fwrite( block.bodyContent, BLOCKSIZE, 1 ,download_fp);
+			}
+			else{
+				fwrite( block.bodyContent, key.originalFileSize - (BLOCKSIZE * i), 1, download_fp);
+			}
+
+		}
 	}
 
+	free(readedBlock);
+	free(decryptBlock);
 	fclose( block_fp );
 	fclose( download_fp );
 
@@ -122,17 +152,22 @@ void BlockToFile(char *blockFileName){
 
 
 
-void CreateKeyFile(unsigned char *hashedWholeDigestMessage, BlockKey key, char *uploadFileName, char *convertingFileName, size_t keySize, unsigned int blockSize){
+void CreateKeyFile(unsigned char *hashedWholeDigestMessage, BlockKey key, char *uploadFileName, char *temporaryName, size_t keySize, unsigned int originalFileSize){
 
-	char keyFileName[ KEY_FOLDER_PATH_SIZE + 255 + KEY_EXTENSION_SIZE ];
+	char keyFileName[ BLOCK_KEY_FOLDER_PATH_SIZE + 255 + BLOCK_KEY_EXTENSION_SIZE ];
 
-	sprintf(keyFileName, "%s%s%s",KEY_FOLDER_PATH, uploadFileName, KEY_EXTENSION);
+	sprintf(keyFileName, "%s%s%s",BLOCK_KEY_FOLDER_PATH, uploadFileName, BLOCK_KEY_EXTENSION);
 
 	FILE *key_fp = fopen(keyFileName, "wb");
+	if ( key_fp == NULL ){
+		fprintf(stderr, " can not open the key file");
+		exit(1);
+	}
 
 	memcpy( key.blockDigestMessage, hashedWholeDigestMessage, EVP_MAX_MD_SIZE );
-	memcpy( key.fileName, uploadFileName, strlen(uploadFileName) );
-	memcpy( key.blockName, convertingFileName, 37);
+	memcpy( key.fileName, uploadFileName, sizeof(key.fileName) );
+	memcpy( key.blockName, temporaryName, 37);
+
 
 	time(&key.createdAt);
 	time(&key.lastAccess);
@@ -144,13 +179,32 @@ void CreateKeyFile(unsigned char *hashedWholeDigestMessage, BlockKey key, char *
 
 
 
-void WriteToBlockFile(Block block, size_t readedSize, FILE *block_fp, unsigned char * digestMessage){
+void WriteToBlockFile(Block block, size_t readedSize, FILE *block_fp, unsigned char * digestMessage, void *blockFlags, int counter){
 
 	sha512Hash( block.bodyContent, block.digestMessage, readedSize);
 	memcpy(digestMessage , block.digestMessage, EVP_MAX_MD_SIZE);
 
-	fwrite( block.digestMessage, 1, EVP_MAX_MD_SIZE, block_fp );
-	fwrite( block.bodyContent, 1, readedSize, block_fp );
+	char *writeBlock;
+	unsigned char *encryptWriteBlock;
+	size_t encryptWriteBlockSize;
+	char bitMapBuf[1];
+
+	writeBlock = calloc( EVP_MAX_MD_SIZE + BLOCKSIZE , 1);
+	memcpy(writeBlock, block.digestMessage, EVP_MAX_MD_SIZE );
+	memcpy(writeBlock + EVP_MAX_MD_SIZE, block.bodyContent, BLOCKSIZE );
+
+	encryptWriteBlockSize = GetAESEncryptedDataSize( EVP_MAX_MD_SIZE + BLOCKSIZE );
+	encryptWriteBlock = calloc( encryptWriteBlockSize , 1);
+	AESEncrypt( AESKey, writeBlock, EVP_MAX_MD_SIZE +  BLOCKSIZE, NULL, encryptWriteBlock );
+
+	fwrite( encryptWriteBlock, encryptWriteBlockSize , 1, block_fp );
+
+	
+	//memcpy( &bitMapBuf, blockFlags + (counter/8) , 1);
+	//bitMapBuf &= counter & pow(2,  7 - (counter % 8) );
+
+	free(writeBlock);
+	free(encryptWriteBlock);
 
 };
 
@@ -165,13 +219,26 @@ int CheckBlock( Block block , size_t readedBlockSize ){
 		return 1;
 	else
 		return 0;
+
 };
 
 
-void ConvertFileToBlockDone(char *convertingFileName, char *_convertingFileName, size_t fileNameSize){
-	char blockFileName[ BLOCK_FOLDER_PATH_SIZE + 1 + fileNameSize + BLOCK_EXTENSION_SIZE ];
-	sprintf(blockFileName,"%s%%%s%s",BLOCK_FOLDER_PATH, _convertingFileName, BLOCK_EXTENSION);
-	rename(convertingFileName, blockFileName);
+void ConvertFileToBlockDone(char *temporaryFileName, unsigned char *digestMessage, size_t fileNameSize, size_t fileNum){
+	/*
+	char blockFileName[ BLOCK_FOLDER_PATH_SIZE + 1 + sizeof(temporaryFileName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION)];
+	char digestFileName[EVP_MAX_MD_SIZE + 1];
+	memcpy(digestFileName, digestMessage, EVP_MAX_MD_SIZE);
+	digestFileName[EVP_MAX_MD_SIZE] = '\0';
+
+	char finalyFileName[ BLOCK_FOLDER_PATH_SIZE + 1 + sizeof(digestFileName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION)];
+
+
+	for(int i=1; i < fileNum; i++){
+		sprintf(temporaryFileName, "%s%%%s(%d)%s", BLOCK_FOLDER_PATH, temporaryName, i, BLOCK_EXTENSION);
+		sprintf();
+		rename(temporaryFileName, finalyFileName);
+	}
+	*/
 };
 
 
@@ -200,7 +267,7 @@ void AESEncryptFile(char *filePath){
 
 	fclose(file_fp);
 
-	char AESKey[16] = "abcdefghijklmnop";
+	//char AESKey[16] = "abcdefghijklmnop";
 	unsigned int encryptedDataSize = GetAESEncryptedDataSize(fileSize);
 
 	unsigned char *encryptedFileData;
@@ -245,7 +312,7 @@ void AESDecryptFile(char *filePath){
 
 	fclose( file_fp );
 
-	char AESKey[16] = "abcdefghijklmnop";
+	//char AESKey[16] = "abcdefghijklmnop";
 
 	char *decryptedFileData;
 	decryptedFileData = malloc( fileSize );
@@ -261,3 +328,16 @@ void AESDecryptFile(char *filePath){
 	free( decryptedFileData );
 	fclose( file_fp );
 };
+
+
+
+void FormatBlockKey( void *blockKeyBuffer, BlockKey *key){
+
+	memcpy( &(key->originalFileSize), blockKeyBuffer, sizeof(key->originalFileSize) );
+	memcpy( &(key->blockNum), blockKeyBuffer + sizeof(key->originalFileSize) , sizeof(key->blockNum));
+	memcpy( key->fileName, blockKeyBuffer + sizeof(key->originalFileSize) + sizeof(key->blockNum), sizeof(key->fileName));
+
+	memcpy( key->blockName, blockKeyBuffer + sizeof(key->originalFileSize) + sizeof(key->blockNum) + sizeof(key->fileName), sizeof(key->blockName));
+
+};
+

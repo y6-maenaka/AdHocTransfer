@@ -1,83 +1,50 @@
 #include "ControlConnection.h"
+#include "HandleCommand.h"
 
+int Sock;
+char AESKey[ AES_KEY_SIZE ];
+PeerInformation PeerInf;
 
 int ClientConnection(char *servIP, unsigned short servPort){
 
-	int sock;
 	struct sockaddr_in servAddr;
 	struct sigaction handler;
-	PeerInformation PeerInf;
+	//PeerInformation PeerInf;
 
-	if (( sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+	if (( Sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 		ConnectionErrorHandling("socket creating failure");
+
 
 	memset(&servAddr, 0x00, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = inet_addr(servIP);
 	servAddr.sin_port = htons(servPort);  // host to network short
 
+
 	// IPAddrから汎用Addrにキャスト
-	if( connect(sock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
+	if( connect(Sock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
 		ConnectionErrorHandling("connect failure");
 
-	PeerInf.TCPPeerSock = sock;
+	printf("Client | Socket Generated -> %d\n", Sock);
 
-	// 非同期I/O設定 =======================================
+	PeerInf.TCPPeerSock = Sock;
 
-	/*
-		struct sigaction{
-			void (*sa_handler)(int) // シグナルハンドラ
-			sigset_t sa_mask; // マスク(block)するシグナル sigfillset() etc..
-			int sa_flags; // フラグ
-			....
-			....
-		}
-		※ sa_handlerフィールドは,int型のパラメータを１つとってvoidを返す関数へのポインタ
-		SIG_DEF, SIG_IGN　て椅子の指定もできる
-	 */
+	SetNonBlocking(Sock);
 
-	handler.sa_handler = SIGIOHandler;
+	SetSIGIO(&handler);
 
-	// 全てのシグナルをマスクする
-	if (sigfillset(&handler.sa_mask) < 0)
-		ConnectionErrorHandling("sigfillset failure");
-
-	handler.sa_flags = 0;
-
-	// デフォルトのシグナル設定のオーバーライド(sigaction())
-	if (sigaction(SIGIO, &handler, 0) < 0)
-		ConnectionErrorHandling("sigaction failure");
-
-	/*
-	 function control() : [1:ディスクリプタ],[2:取得or変更].[3:Flag(O_NONBLOCK)]
-	 socketもディスクリプタで制御可
-	 標準入出力も制御可
-	 */
-
-	// シグナルの送信先をこのプロセスにする
-	if (fcntl(sock, F_SETOWN, getpid()) < 0)
-		ConnectionErrorHandling("fcntl failure");
-
-	// シグナル
-	if (fcntl(sock, F_SETFL, O_NONBLOCK | FASYNC) < 0)
-		ConnectionErrorHandling("fcntl failure");
-
-	// ===========================================================
-
-	close(sock);
-
-	return sock;
+	return Sock;
 }
 
 
 
 int ServerConnection(unsigned short servPort){
 
-	int servSock , clntSock;
+	int servSock;
 	struct sockaddr_in servAddr;
 	struct sockaddr_in clntAddr;
 	struct sigaction handler;
-	PeerInformation PeerInf;
+	//PeerInformation PeerInf;
 
 	if (( servSock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 		ConnectionErrorHandling("socket creating failure");
@@ -94,38 +61,64 @@ int ServerConnection(unsigned short servPort){
 	if (listen(servSock, MAXPENDING) < 0)
 		ConnectionErrorHandling("listen failure");
 
+
 	unsigned int clntLen = sizeof(clntAddr);
 	// 許可したらsocketを複製
-	if (( clntSock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen)) < 0)
+	if (( Sock = accept(servSock, (struct sockaddr *)&clntAddr, &clntLen)) < 0)
 		ConnectionErrorHandling("accept failure");
 
-	PeerInf.TCPPeerSock = clntSock;
+	printf("Server | Socket Generated -> %d\n", Sock);
+
+	PeerInf.TCPPeerSock = Sock;
 	memcpy(PeerInf.PeerIP, &(clntAddr.sin_addr.s_addr), 4);
 
 	// setting signal(SIGIO) =======================
 
-	handler.sa_handler = SIGIOHandler;
-	handler.sa_flags = 0;
+	SetNonBlocking(Sock);
 
-	if ( sigfillset(&handler.sa_mask) < 0 )
+	SetSIGIO(&handler);
+
+	//SetNonBlocking(Sock);
+
+	return Sock;
+}
+
+
+void SetSIGIO(struct sigaction *handler){
+
+	handler->sa_handler = ReceiveCommand;
+	handler->sa_flags = 0;
+
+	// 全てのシグナルをマスク
+	if ( sigfillset( &(handler->sa_mask) ) < 0)
 		ConnectionErrorHandling("sigfillset failure");
 
-	if ( sigaction(SIGIO, &handler, 0) < 0 )
+	// キーボード割り込みを許可
+	if ( sigdelset( &(handler->sa_mask), SIGINT ) < 0 )
+		ConnectionErrorHandling("sigdelset failure");
+
+	// KILLを許可
+	if ( sigdelset( &(handler->sa_mask), SIGKILL) < 0 )
+		ConnectionErrorHandling("sigdelset failure");
+
+	// デフォルトのシグナル設定をオーバーライド
+	if ( sigaction(SIGIO, handler, 0) < 0)
 		ConnectionErrorHandling("sigaction failure");
 
-	// =============================================
+	printf("===== Override signal settings =====\n");
+}
 
-	if ( fcntl(clntSock, F_SETOWN, getpid() < 0) )
+void SetNonBlocking(int sock){
+
+	// シグナルの送信先をこのプロセスにする
+	if ( fcntl( sock, F_SETOWN, getpid()) < 0 )
 		ConnectionErrorHandling("fcntl failure");
 
-	if ( fcntl(clntSock, F_SETFL, O_NONBLOCK | FASYNC) < 0 )
+	// ノンブロッキング設定
+	if ( fcntl( sock, F_SETFL, O_NONBLOCK | FASYNC) < 0 )
 		ConnectionErrorHandling("fcntl failure");
 
-	close(clntSock);
-	close(servSock);
-
-	return clntSock;
-
+	printf("===== Non-Block is set in the socket =====\n");
 }
 
 
@@ -137,74 +130,163 @@ void ConnectionErrorHandling(char *errorMessage){
 
 
 void SIGIOHandler(int signalType){
-	printf("signal detected");
+	printf("signal detected\n");
 }
 
-void SendCommand(){
-	printf("here is send command function");
+
+void SendCommand( int sock ,int command, const size_t fileSize, void *file){
+
+	int sendedSize;
+	size_t formatCommandSize;
+	ssize_t sendSize;
+
+	void *formatCommand;
+	formatCommandSize = sizeof(char) + sizeof(int) + sizeof(size_t);
+	formatCommand = malloc( formatCommandSize );
+
+	memcpy(formatCommand, "$", sizeof(char));
+	memcpy(formatCommand + 1, &command, sizeof(int));
+	memcpy(formatCommand + 1 + sizeof(int), &fileSize, sizeof(size_t));
+
+	void *packageCommand;
+	packageCommand = malloc( formatCommandSize + fileSize );
+
+	memcpy( packageCommand, formatCommand, formatCommandSize);
+	memcpy( packageCommand + formatCommandSize, file, fileSize);
+
+	//EVP_PKEY *pkey = NULL;
+	//void *tmp;
+	//tmp = malloc(8);
+	//memcpy(&tmp, packageCommand + formatCommandSize, 8);
+	//EVP_PKEY_print_public_fp(stdout, pkey, 0, NULL);
+	//EVP_PKEY_print_public_fp(stdout, (EVP_PKEY *)tmp, 0, NULL);
+
+	sendSize = send(sock, packageCommand, formatCommandSize + fileSize, 0);
+
+	printf("===== Send Package Command ( %zu bytes ) =====\n", sendSize);
+
+	free(formatCommand);
+	free(packageCommand);
+
 }
 
 
 void GetSocketQSize(int sock, int *SendQSize, int *RecvQSize){
+
+	unsigned int socketQOptLen = sizeof(SendQSize);
+
+	getsockopt( sock, SOL_SOCKET, SO_SNDBUF, SendQSize , &socketQOptLen );
+	getsockopt( sock, SOL_SOCKET, SO_RCVBUF, RecvQSize , &socketQOptLen );
+
+};
+
+
+void SetSocketQSize(int sock, int SendQSize, int RecvQSize){	
 	
-	unsigned int sendQOptLen = sizeof(SendQSize);
-	unsigned int recvQOptLen = sizeof(RecvQSize);
-	getsockopt( sock, SOL_SOCKET, SO_SNDBUF, SendQSize , &sendQOptLen );
-	getsockopt( sock, SOL_SOCKET, SO_RCVBUF, RecvQSize , &recvQOptLen );
+	unsigned int socketQOptLen = sizeof( SendQSize );
+
+	if ( SendQSize ){
+		setsockopt( sock, SOL_SOCKET, SO_SNDBUF, &SendQSize , socketQOptLen);
+		puts("koko desu");
+	}
+
+	if ( RecvQSize )
+		setsockopt( sock, SOL_SOCKET, SO_RCVBUF, &RecvQSize , socketQOptLen);
 
 };
 
 
 
-void ReceiveCommand(int sock){
-	
-	char buf[1];
+void ReceiveCommand(){
+
+	char buf[1] = {0};
 	unsigned char controlMessage[ COMMAND_LENGTH + FILE_SIZE_LENGTH ];
 	int command;
 	size_t fileSize;
-	unsigned char *file;
-	struct sigaction TimeOutSIG;
+	void *file;
+	ssize_t recvSize = 0;
 
-	TimeOutSIG.sa_handler = ReceiveCommandTimeOut;
-	// 全てマスクする
-	if ( sigfillset( &TimeOutSIG.sa_mask) < 0 )
-		ConnectionErrorHandling(" sigfillset() failure");
+	// ===== selectの設定 =====
 
-	// シグナル設定
-	if ( sigaction( SIGALRM, &TimeOutSIG, 0) < 0 )
-		ConnectionErrorHandling(" sigaction() failure");
+	struct timeval selTimeout;
+	fd_set sockSet;
+	int maxDescriptor = Sock + 1;
 
-	for(;;){
+	FD_ZERO(&sockSet);
+	FD_SET(Sock, &sockSet);
+	selTimeout.tv_sec = 0;
+	selTimeout.tv_usec = 0;
 
-		alarm(TIMEOUT_SECS); // timeout設定
-		recv(sock, buf, 1, 0); // timeout設定
-															// timeout -> break;
-		if ( *buf == 37 ){
-			recv( sock, controlMessage, sizeof(controlMessage) , 0);
-			if( errno == EINTR )
-				// SIGALRMが送信される(or error)とrecvは-1を返す。
+	// =======================
+
+	if ( select(maxDescriptor, &sockSet, NULL, NULL, &selTimeout) > 0 ){
+
+		for(;;){
+
+			recvSize = recv(Sock, buf, 1, 0);
+
+			if ( errno == EWOULDBLOCK || recvSize <= 0){
+				printf("brake with EWOULDBLOCK\n");
 				break;
-
-			memcpy(&command, controlMessage, sizeof(command));
-			memcpy(&fileSize, controlMessage + sizeof(command), sizeof(fileSize));
-
-			if( fileSize != 0){
-				file = calloc( 1, fileSize);
-				recv( sock , file, fileSize, 0);
 			}
 
-			file = NULL;
+			if ( buf[0] == '$' ){
 
-			HandleCommand( command, fileSize, file);
+				recvSize = recv( Sock, controlMessage, sizeof(controlMessage) , 0);
+
+				if( errno == EWOULDBLOCK  /* EAGAIN */ || recvSize <= 0 ){
+					break;
+					// SIGALRMが送信される(or error)とrecvは-1を返す。
+				 }
+
+				memcpy( &command, controlMessage, sizeof(command));
+				memcpy( &fileSize, controlMessage + sizeof(command), sizeof(fileSize));
+
+				//printf(" command is -> %d\n", command);
+				//printf(" file size is -> %zu\n", fileSize);
+
+				file = NULL;
+
+				printf("file size is -> %zu\n", fileSize);
+
+				if( fileSize != 0){
+					file = malloc(fileSize);
+					recvSize = recv( Sock , file, fileSize, 0);
+				}
+
+				HandleCommand( command, fileSize, file);
+
+			}
 		}
 	}
-
 	// callocをfreeする
-	
+
 };
 
 
-void HandleCommand(const int controlMessage, const int fileSize, unsigned char *file){};
+void HandleCommand(const int controlMessage, const size_t fileSize, void *file){
+	
+	
+	switch(controlMessage){
+		int QSize;
+
+		case RSA_PUBLIC_KEY:
+			break;
+
+		case SOCKET_RECEIVEQ_SIZE:
+			memcpy( &QSize, file, fileSize);
+			printf("Get SocketQ Size -> %d\n", QSize);
+			break;
+
+		case SOCKET_SENDQ_SIZE:
+			memcpy( &QSize, file, fileSize);
+			printf("Get SocketQ Size -> %d\n", QSize);
+			break;
+	}
+
+};
+
+
 
 
 void ReceiveCommandTimeOut(){

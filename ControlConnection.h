@@ -1,6 +1,7 @@
 #ifndef _H_ControlConnection_
 #define _H_ControlConnection_
 
+#include "HashCipher.h"
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
@@ -10,17 +11,24 @@
 #include <signal.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <stdbool.h>
+
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
 
 #define MAXPENDING 5
 
-#define SOCKETQ_SIZE 1
-#define	RSA_PUBLIC_KEY 2
-#define AES_KEY 3
-#define UDP_PORT 4
+#define SOCKET_RECEIVEQ_SIZE 1
+#define SOCKET_SENDQ_SIZE 2
+#define	RSA_PUBLIC_KEY 3
+#define AES_KEY 4
+#define UDP_PORT 5
 
 #define COMMAND_SYMBOL $
-#define COMMAND_LENGTH 4
-#define FILE_SIZE_LENGTH 8
+#define COMMAND_LENGTH sizeof(int)
+#define FILE_SIZE_LENGTH sizeof(size_t)
 
 #define TIMEOUT_SECS 2 // (s)
 
@@ -32,6 +40,7 @@ typedef struct PEERINFORMATION{
 	char PeerIP[4];
 	int PeerSendQSize;
 	int PeerRecvQSize;
+	EVP_PKEY *PeerRSAPublicKey;
 
 }PeerInformation;
 
@@ -39,22 +48,28 @@ typedef struct PEERINFORMATION{
 int ClientConnection(char *servIP, unsigned short servPort);
 int ServerConnection(unsigned short servPort);
 
+void SetSIGIO(struct sigaction *handler);
+void SetNonBlocking(int sock);
+
 void SendControlMessage(int socket);
 
 void ConnectionErrorHandling(char *errorMessage);
 
 void SIGIOHandler(int signalType);
 
-void SendCommand();
+void SendCommand(int sock ,int command, const size_t fileSize, void *file);
 
 void SendControlMessage();
 
 void GetSocketQSize(int sock, int *SendQSize, int *RecvQSize);
 
+void SetSocketQSize(int sock, int SendQSize, int RecvQSize);
+
 void ReceiveCommand(int sock);
 
-void HandleCommand(const int controlMessage, const int fileSize,unsigned char *file);
+void HandleCommand(const int controlMessage, const size_t fileSize, void *file);
 
 void ReceiveCommandTimeOut();
+
 
 #endif // _H_ControlConnection_

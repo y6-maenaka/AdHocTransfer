@@ -4,7 +4,7 @@
 #include <openssl/evp.h>
 #include <openssl/aes.h>
 #include <openssl/rsa.h>
-#include <openssl/pem.h> 
+#include <openssl/pem.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -14,8 +14,10 @@
 #define RSA_KEY_SIZE 4096
 #define PUBLIC_KEY_PEM_PATH ".config/.AhPublicKey.pem"
 #define PRIVATE_KEY_PEM_PATH ".config/.AhPrivateKey.pem"
+#define AES_KEY_SIZE 16
 
 #define AES_BLOCK_SIZE 16 // BLOCK = PADDING
+
 
 int sha512Hash(char *plainContext, unsigned char *digestMessage, unsigned int plainContextSize);
 

@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define KEYSIZE 16
 
 long int GetFileSize(FILE *fp);
 void GenerateUUID(uuid_t uuid);

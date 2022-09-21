@@ -1,4 +1,7 @@
 #include "ControlFile.h"
+#include "HashCipher.h"
+
+extern char AESKey[AES_KEY_SIZE];
 
 long int GetFileSize(FILE *fp){
 
@@ -33,20 +36,20 @@ void GenerateUUIDString(char *uuidFileNameString){
 void LoadConfig(){
 
 	FILE *config_fp;
-	char key[KEYSIZE] = {0};
+	//extern char AESKey[AES_KEY_SIZE];
 
 	srand((unsigned int)time(NULL));
 
 	if ( (config_fp = fopen(".config/.AdHocTransfer.aconf", "rb")) ){
-		fread( key, KEYSIZE, 1, config_fp );
+		fread( AESKey, AES_KEY_SIZE, 1, config_fp );
 	}else{
 
 		config_fp = fopen(".config/.AdHocTransfer.aconf","wb");
 
-		for(int i=0; i<sizeof(key); i++)
-			key[i] = rand() % 126 + 33;
+		for(int i=0; i<sizeof(AESKey); i++)
+			AESKey[i] = rand() % 126 + 33;
 
-			fwrite( key, KEYSIZE, 1, config_fp );
+			fwrite( AESKey, AES_KEY_SIZE, 1, config_fp );
 	}
 
 	fclose(config_fp);

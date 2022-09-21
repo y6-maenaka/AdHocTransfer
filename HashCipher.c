@@ -29,6 +29,7 @@ int sha512Hash(char *plainContext, unsigned char *digestMessage, unsigned int pl
 	return mdLength;
 }
 
+
 int AESEncrypt(const char *key, const char *encryptData, const size_t encryptDataLength,const unsigned char *iv, unsigned char *dest){
 
 	EVP_CIPHER_CTX *encryptCTX = NULL; // 暗号化の内部状態を保持する
@@ -38,7 +39,7 @@ int AESEncrypt(const char *key, const char *encryptData, const size_t encryptDat
 	if ( !(encryptCTX = EVP_CIPHER_CTX_new()) ) CryptoError("EVP_CIPHER_CTX_new() failure");
 
 	//if ( ! EVP_CIPHER_CTX_init(encryptCTX) ) CryptoError("EVP_CIPHER_CTX_init() failure");
-	
+
 
  // initialize  or EVP_EncryptInit()
 	if ( EVP_EncryptInit_ex(encryptCTX, EVP_aes_128_cbc(), NULL, (unsigned char *)key, NULL) <= 0 )
@@ -53,10 +54,10 @@ int AESEncrypt(const char *key, const char *encryptData, const size_t encryptDat
 		fifth argument : vector (16bytes)
 	 */
 
-	if ( EVP_EncryptUpdate(encryptCTX, dest, &c_len, (unsigned char *)encryptData, encryptDataLength) <= 0 ) 
+	if ( EVP_EncryptUpdate(encryptCTX, dest, &c_len, (unsigned char *)encryptData, encryptDataLength) <= 0 )
 
-	// 0 < data size < encryptDataLength + cipher_block_size - 1	
-	
+	// 0 < data size < encryptDataLength + cipher_block_size - 1
+
 	EVP_EncryptFinal_ex(encryptCTX, dest + c_len, &f_len);
 
 	EVP_CIPHER_CTX_cleanup(encryptCTX);
@@ -70,7 +71,7 @@ int AESDecrypt(const char *key, const unsigned char *decryptData, const size_t d
 
 	EVP_CIPHER_CTX *decryptCTX = NULL;
 
-	if ( !(decryptCTX = EVP_CIPHER_CTX_new())) 
+	if ( !(decryptCTX = EVP_CIPHER_CTX_new()))
 		CryptoError("EVP_CIPHER_CTX_new() failure");
 
 	int c_len;
@@ -81,10 +82,10 @@ int AESDecrypt(const char *key, const unsigned char *decryptData, const size_t d
 
 	if ( EVP_DecryptUpdate(decryptCTX, (unsigned char *)dest, &c_len, decryptData, decryptDataLength) <= 0 )
 		CryptoError("EVP_DecryptUpdate() failure");
-	
-	printf("%d",c_len);
+
 
 	EVP_DecryptFinal_ex(decryptCTX, (unsigned char *)(dest + c_len), &f_len);
+
 
 	EVP_CIPHER_CTX_cleanup(decryptCTX);
 	//EVP_CIPHER_CTX_free(decryptCTX);
@@ -137,7 +138,7 @@ void SaveRSAPrivateKey(EVP_PKEY *pkey){
 
 	FILE *privateKeyPem_fp;
 	privateKeyPem_fp = fopen(PRIVATE_KEY_PEM_PATH,"w");
-	
+
 	if ( privateKeyPem_fp == NULL )  fprintf(stderr, "can not open private key pem file");
 
 	if ( PEM_write_PrivateKey(privateKeyPem_fp, pkey, NULL, NULL, 0, NULL, NULL)  <=  0)
@@ -175,7 +176,7 @@ EVP_PKEY *ReadRSAPrivateKey(){
 	EVP_PKEY *privateKey = PEM_read_PrivateKey(privateKeyPem_fp, NULL, NULL, NULL);
 	if (privateKey == NULL)
 		CryptoError("PEM_read_PrivateKey() failure");
-	
+
 	fclose(privateKeyPem_fp);
 
 	return privateKey;
@@ -188,7 +189,7 @@ unsigned char *RSAEncrypt(EVP_PKEY *pkey, unsigned char *plainMess, size_t plain
 	unsigned char *encryptedMess;
 
 	EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new(pkey, NULL);
-	
+
 	if ( EVP_PKEY_encrypt_init(pctx) <= 0 )
 		CryptoError("EVP_PKEY_encrypt_init() failure");
 
@@ -219,7 +220,7 @@ unsigned char *RSADecrypt(EVP_PKEY *pkey, unsigned char *encryptedMess, size_t e
 	if ( EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PADDING) <= 0 )
 		CryptoError("EVP_PKEY_CTX_set_rsa_paddin() failure");
 
-	if ( EVP_PKEY_decrypt(pctx, NULL, outLength, encryptedMess, encryptedMessLength) <= 0) 
+	if ( EVP_PKEY_decrypt(pctx, NULL, outLength, encryptedMess, encryptedMessLength) <= 0)
 		CryptoError("EVP_PKEY_decrypt() failure");
 
 	decryptedMess = OPENSSL_malloc(*outLength);
