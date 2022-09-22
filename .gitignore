@@ -1,6 +1,4 @@
-BlockFolder/*
-KeyFolder/*
-UploadFolder/*
-DownloadFolder/*
+BlockFolder/*.ablock
+KeyFolder/*.akey
 .config/*.pem
 .config/*.aconf
