@@ -10,7 +10,7 @@ int main(int argc, char *argv[]){
 
 
 
-	/*
+	/*	
 	BlockKey key;
 	//printf("%zu", sizeof(unsigned char));
 	//printf("%zu", sizeof( BlockKey));
@@ -40,6 +40,7 @@ int main(int argc, char *argv[]){
 	fclose( block_fp );
 	free(blockKeyBuffer);
 	*/
+	
 	
 
 	
