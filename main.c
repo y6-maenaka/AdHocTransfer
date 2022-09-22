@@ -96,8 +96,8 @@ int main(int argc, char *argv[]){
 	//EVP_PKEY_print_public_fp( stdout, PeerInf.PeerRSAPublicKey, 0, NULL);
 	//printf("%s", PeerInf.PeerRSAPublicKey);
 
-	char fileName[] = "sample_video.mp4";
-	FileToBlock(fileName);
+	//char fileName[] = "sample_video.mp4";
+	//FileToBlock(fileName);
 
 	//char fileName[] = "sample_image.ablok";
 	//BlockToFile(fileName);
