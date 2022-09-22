@@ -1,15 +1,48 @@
 #include "HashCipher.h"
-#include "ConvertFile.h"
 #include "ControlFile.h"
 #include "ControlConnection.h"
-#include <stdio.h>
-
-
-#define KEYSIZE 16
+#include "ConvertFile.h"
+#include "Sample.h"
 
 
 int main(int argc, char *argv[]){
 	LoadConfig();
+
+
+
+	/*
+	BlockKey key;
+	//printf("%zu", sizeof(unsigned char));
+	//printf("%zu", sizeof( BlockKey));
+	void *blockKeyBuffer;
+	blockKeyBuffer = calloc( sizeof(BlockKey), 1);
+
+	FILE *block_fp = NULL;
+	block_fp = fopen("KeyFolder/sample_video.mp4.akey", "rb");
+	fread(blockKeyBuffer, sizeof(BlockKey), 1, block_fp);
+
+	FormatBlockKey( blockKeyBuffer, &key);
+	
+	printf("originalFileSize -> %u\n", key.originalFileSize);
+	printf("fileNum -> %s\n",key.fileName);
+	printf("blockDigestMessage -> %s\n", key.blockDigestMessage);
+	printf("blockName -> %s\n", key.blockName);
+
+	unsigned char buf[1] = {0};
+
+	for(int i=0; i<525; i++){
+		memcpy( &buf, key.blockFlags + i, 1);
+		printf("%d ", *buf);
+	}
+
+
+
+	fclose( block_fp );
+	free(blockKeyBuffer);
+	*/
+	
+
+	
 
 /*
 	EVP_PKEY *pkey = NULL;
@@ -51,8 +84,8 @@ int main(int argc, char *argv[]){
 	puts("hello after");
 	close(sock);
 	*/
-	
-	/*
+
+	/*	
 	int sock;
 	PeerInformation PeerInf;
 	unsigned short servPort = 8080;
@@ -63,12 +96,12 @@ int main(int argc, char *argv[]){
 	//EVP_PKEY_print_public_fp( stdout, PeerInf.PeerRSAPublicKey, 0, NULL);
 	//printf("%s", PeerInf.PeerRSAPublicKey);
 
-
 	char fileName[] = "sample_video.mp4";
 	FileToBlock(fileName);
 
 	//char fileName[] = "sample_image.ablok";
 	//BlockToFile(fileName);
+	
 
 
 	//AESEncryptFile("BlockFolder/%9003BF3B-AC66-4EEB-97EB-5009F331C624.ablock");

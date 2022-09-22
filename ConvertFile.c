@@ -19,7 +19,7 @@ void FileToBlock(char *uploadFileName){
 
 	Block block = {0};
 	BlockKey key = {0};
-	//key.block_flags = calloc( BLOCK_FLAGS_SIZE, 1);
+	//key.blockFlags = calloc( BLOCK_FLAGS_SIZE, 1);
 
 
 	// Generate Upload File Path
@@ -84,6 +84,12 @@ void FileToBlock(char *uploadFileName){
 
 	//ConvertFileToBlockDone(temporaryFileName, _temporaryFileName, sizeof(_temporaryFileName));
 
+	unsigned char buf[1] = {0};	
+	for(int i=0; i<525; i++){
+		memcpy( buf, key.blockFlags + i, 1);
+		printf("%d ", *buf);
+	}
+
 	fclose(upload_fp);
 	fclose(block_fp);
 
@@ -93,9 +99,9 @@ void FileToBlock(char *uploadFileName){
 void BlockToFile(char *blockFileName){
 
 	Block block;
-	BlockKey key;	
+	BlockKey key;
 	FILE *blockKey_fp = NULL;
-	char blockKeyBuffer[sizeof(key)];
+	unsigned char blockKeyBuffer[sizeof( BlockKey )] = {0}; // ☆
 
 	blockKey_fp = fopen("KeyFolder/sample_video.mp4.akey", "rb");
 	fread( blockKeyBuffer, sizeof(key), 1, blockKey_fp);
@@ -187,7 +193,9 @@ void WriteToBlockFile(Block block, size_t readedSize, FILE *block_fp, unsigned c
 	char *writeBlock;
 	unsigned char *encryptWriteBlock;
 	size_t encryptWriteBlockSize;
-	char bitMapBuf[1];
+	unsigned char bitMapBuf[1];
+	memset( &bitMapBuf, 0x00, 1); // なくても良い
+	//bitMapBuf = calloc(1,1);
 
 	writeBlock = calloc( EVP_MAX_MD_SIZE + BLOCKSIZE , 1);
 	memcpy(writeBlock, block.digestMessage, EVP_MAX_MD_SIZE );
@@ -199,13 +207,15 @@ void WriteToBlockFile(Block block, size_t readedSize, FILE *block_fp, unsigned c
 
 	fwrite( encryptWriteBlock, encryptWriteBlockSize , 1, block_fp );
 
-	
-	//memcpy( &bitMapBuf, blockFlags + (counter/8) , 1);
-	//bitMapBuf &= counter & pow(2,  7 - (counter % 8) );
+
+	memcpy( &bitMapBuf, blockFlags + (counter/8) , 1);
+	*bitMapBuf |= (unsigned int)(pow(2,  7 - (counter % 8) ));
+	memcpy( blockFlags + (counter/8), &bitMapBuf, 1);
+
+	printf("%d\n",*bitMapBuf);
 
 	free(writeBlock);
 	free(encryptWriteBlock);
-
 };
 
 
@@ -229,10 +239,7 @@ void ConvertFileToBlockDone(char *temporaryFileName, unsigned char *digestMessag
 	char digestFileName[EVP_MAX_MD_SIZE + 1];
 	memcpy(digestFileName, digestMessage, EVP_MAX_MD_SIZE);
 	digestFileName[EVP_MAX_MD_SIZE] = '\0';
-
 	char finalyFileName[ BLOCK_FOLDER_PATH_SIZE + 1 + sizeof(digestFileName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION)];
-
-
 	for(int i=1; i < fileNum; i++){
 		sprintf(temporaryFileName, "%s%%%s(%d)%s", BLOCK_FOLDER_PATH, temporaryName, i, BLOCK_EXTENSION);
 		sprintf();
@@ -339,5 +346,7 @@ void FormatBlockKey( void *blockKeyBuffer, BlockKey *key){
 
 	memcpy( key->blockName, blockKeyBuffer + sizeof(key->originalFileSize) + sizeof(key->blockNum) + sizeof(key->fileName), sizeof(key->blockName));
 
-};
+  memcpy( key->blockFlags, blockKeyBuffer + sizeof(key->originalFileSize) + sizeof(key->blockNum) + sizeof(key->fileName) + sizeof(key->blockName), sizeof(key->blockFlags));
 
+
+};

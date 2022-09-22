@@ -1,5 +1,4 @@
 #include "ControlConnection.h"
-#include "HandleCommand.h"
 
 int Sock;
 char AESKey[ AES_KEY_SIZE ];

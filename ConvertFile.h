@@ -45,10 +45,11 @@ typedef struct BLOCKKEY{
 	unsigned int blockNum;
 	char fileName[255];
 	char blockName[37];
+	unsigned char blockFlags[BLOCK_FLAGS_SIZE];
 	unsigned char blockDigestMessage[64];
 	time_t createdAt;
 	time_t lastAccess;
-	void *blockFlags;
+	//void *blockFlags;
 	// bitMap
 }BlockKey;
 
@@ -56,7 +57,9 @@ typedef struct BLOCKKEY{
 
 void FileToBlock(char *uploadFileName);
 void BlockToFile(char *blockFileName);
+
 void CreateKeyFile(unsigned char *hashedwholeDigestMessage, BlockKey key, char *uploadFileName, char *temporaryFileName, size_t keySize, unsigned int blockSize);
+
 void WriteToBlockFile(Block block, size_t readedSize, FILE *block_fp, unsigned char *digestMessage, void *blockFlags, int counter);
 
 int CheckBlock( Block block, size_t readedBlockSize );
@@ -67,7 +70,6 @@ void AESEncryptFile(char *filePath);
 void AESDecryptFile(char *filePath);
 
 void FormatBlockKey( void *blockKeyBuffer, BlockKey *key);
-
 
 
 #endif // _H_ConvertFile_
