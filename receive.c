@@ -1,8 +1,8 @@
-#include "HashCipher.h"
-#include "ControlFile.h"
-#include "ControlConnection.h"
-#include "ConvertFile.h"
-#include "TransferData.h"
+#include "header/HashCipher.h"
+#include "header/ControlFile.h"
+#include "header/ControlConnection.h"
+#include "header/ConvertFile.h"
+#include "header/TransferData.h"
 
 int main(int argc, char *argv[]){
 

@@ -1,5 +1,5 @@
-#include "ControlFile.h"
-#include "HashCipher.h"
+#include "../header/ControlFile.h"
+#include "../header/HashCipher.h"
 
 extern char AESKey[AES_KEY_SIZE];
 

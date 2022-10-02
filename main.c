@@ -1,8 +1,8 @@
-#include "HashCipher.h"
-#include "ControlFile.h"
-#include "ControlConnection.h"
-#include "ConvertFile.h"
-#include "TransferData.h"
+#include "header/HashCipher.h"
+#include "header/ControlFile.h"
+#include "header/ControlConnection.h"
+#include "header/ConvertFile.h"
+#include "header/TransferData.h"
 
 
 int main(int argc, char *argv[]){
@@ -89,7 +89,7 @@ int main(int argc, char *argv[]){
 	EVP_PKEY_print_public_fp(stdout, _pkey, 0 , NULL);
 	*/
 
-	/*
+	/*	
 	int sock;
 	char servIP[11] = "127.0.0.1";
 	unsigned short servPort = 8080;
@@ -116,15 +116,14 @@ int main(int argc, char *argv[]){
 	SendCommand(sock, SOCKET_RECEIVEQ_SIZE, sizeof(recvQSize), &recvQSize);
 	puts("hello after");
 	close(sock);
-	*/
+	*/	
 
-	/*	
 	int sock;
 	PeerInformation PeerInf;
 	unsigned short servPort = 8080;
 	int tmp = ServerConnection(servPort);
 	sleep(11);
-	*/
+
 	
 
 	//EVP_PKEY_print_public_fp( stdout, PeerInf.PeerRSAPublicKey, 0, NULL);
@@ -133,8 +132,8 @@ int main(int argc, char *argv[]){
 	//char fileName[] = "sample_video.mp4";
 	//FileToBlock(fileName);
 
-	char fileName[] = "sample_image.ablok";
-	BlockToFile(fileName);
+	//char fileName[] = "sample_image.ablok";
+	//BlockToFile(fileName);
 
 
 

@@ -1,4 +1,4 @@
-#include "ControlConnection.h"
+#include "../header/ControlConnection.h"
 
 int Sock;
 char AESKey[ AES_KEY_SIZE ];

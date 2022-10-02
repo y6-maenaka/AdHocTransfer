@@ -1,4 +1,4 @@
-#include "HashCipher.h"
+#include "../header/HashCipher.h"
 
 // EVP_MAX_MD_SIZE = 64
 

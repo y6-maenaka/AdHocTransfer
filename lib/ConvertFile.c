@@ -1,6 +1,6 @@
-#include "ConvertFile.h"
-#include "HashCipher.h"
-#include "ControlFile.h"
+#include "../header/ConvertFile.h"
+#include "../header/HashCipher.h"
+#include "../header/ControlFile.h"
 
 
 char AESKey[AES_KEY_SIZE];
@@ -10,7 +10,7 @@ void FileToBlock(char *uploadFileName){
 
 	char readBuffer[BLOCKSIZE];
 	unsigned char _digestMessage[EVP_MAX_MD_SIZE] = {0};
-	char uploadFilePath[ UPLOAD_FOLDER_PATH_SIZE + 255 ];
+	char uploadFilePath[ sizeof(UPLOAD_FOLDER_PATH) + 255 ];
 	size_t _readedSize;
 	long int fileSize;
 	unsigned int wholeDigestMessageNum;
@@ -25,11 +25,14 @@ void FileToBlock(char *uploadFileName){
 	// Generate Upload File Path
 	sprintf(uploadFilePath,"%s%s", UPLOAD_FOLDER_PATH, uploadFileName);
 
+
 	FILE *upload_fp = fopen( uploadFilePath, "rb" );
+	printf("%s\n", uploadFilePath);
 	if(upload_fp == NULL){
 		fprintf(stderr, "can not upload file");
 		exit(1);
 	}
+
 
 	fileSize = GetFileSize( upload_fp );
 	key.originalFileSize = fileSize;
@@ -46,7 +49,7 @@ void FileToBlock(char *uploadFileName){
 	GenerateUUIDString(temporaryName);
 	temporaryName[36] = '\0';
 
-	char temporaryFileName[ BLOCK_FOLDER_PATH_SIZE + 1 + sizeof(temporaryName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION) ];
+	char temporaryFileName[ sizeof(BLOCK_FOLDER_PATH)+ 1 + sizeof(temporaryName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION) ];
 	FILE *block_fp = NULL;
 
 	int counter = 0;
@@ -114,7 +117,7 @@ void BlockToFile(char *blockFileName){
 
 
 	FILE *block_fp = NULL;
-	char blockFilePath[ BLOCK_FOLDER_PATH_SIZE + 1 + BLOCK_NAME_LENGTH + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION_SIZE) + 1];
+	char blockFilePath[ sizeof(BLOCK_FOLDER_PATH) + 1 + BLOCK_NAME_LENGTH + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION) + 1];
 
 	unsigned char *readedBlock;
 	size_t encryptBlockSize = GetAESEncryptedDataSize( BLOCKSIZE + EVP_MAX_MD_SIZE );
@@ -164,7 +167,7 @@ void BlockToFile(char *blockFileName){
 
 void CreateKeyFile(unsigned char *hashedWholeDigestMessage, BlockKey key, char *uploadFileName, char *temporaryName, size_t keySize, unsigned int originalFileSize){
 
-	char keyFileName[ BLOCK_KEY_FOLDER_PATH_SIZE + 255 + BLOCK_KEY_EXTENSION_SIZE ];
+	char keyFileName[ sizeof(BLOCK_KEY_FOLDER_PATH) + 255 + sizeof(BLOCK_KEY_EXTENSION) ];
 
 	sprintf(keyFileName, "%s%s%s",BLOCK_KEY_FOLDER_PATH, uploadFileName, BLOCK_KEY_EXTENSION);
 
@@ -374,7 +377,7 @@ BlockKey FormatBlockKey( void *blockKeyBuffer ){
 
 void CreateStringDigest( unsigned char *digest, char *stringDigest ){
 	char buf[3];
-	
+
 	char _stringDigest[129];
 	for(int i=0; i<EVP_MAX_MD_SIZE; i++){
 		sprintf( buf, "%02X", digest[i]);

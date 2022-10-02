@@ -1,4 +1,4 @@
-#include "TransferData.h"
+#include "../header/TransferData.h"
 #define CommandPadding 2
 
 
@@ -22,7 +22,7 @@ void BindUDPPort(){ // 送信側
 
 
 	for( int i=0; i<5; i++ ){
-		short int randomPort = (short)((rand() % 16383) + 49512); //　ダイナミックナンバーを使う
+		short int randomPort = (short)((rand() % 16383) + 49512); //　ダイナミックポートナンバーを使う
 
 		servAddr.sin_family = AF_INET;
 		servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -75,7 +75,7 @@ void RequestBlock( ){ // 受信側
 
 	void *blockKeyBuffer;
 	blockKeyBuffer = malloc( sizeof(BlockKey));
-	FILE *key_fp = fopen( "KeyFolder/sample_video.mp4.akey", "rb");
+	FILE *key_fp = fopen( "../KeyFolder/sample_video.mp4.akey", "rb");
 
 	fread( blockKeyBuffer, sizeof(BlockKey) , 1, key_fp);
 	fclose( key_fp );
