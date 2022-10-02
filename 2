@@ -131,30 +131,51 @@ void RequestBlock( ){ // 受信側
 		if ( position >= BLOCK_FLAGS_SIZE ) position = 0;
 	}
 
+	/*	
+	while( 1 ){
+		memcpy( flagBuf, key.blockFlags + position, 1);
+
+		for(int i=7; i>=0;i--){
+			if( (int)(*flagBuf) >= pow(2,i)){
+
+				*flagBuf -= pow(2,i);
+
+				command = GenerateRequestCommand( blockFileNameString, position * 8 + ( 8 - i) );
+				RequestBlock( PeerInf.UDPPeerSock, &clntAddr, &command);
+
+				if(flagBuf <= 0) break;
+
+			}
+		}
+	
+
+		if ( position >= BLOCK_FLAGS_SIZE ) break;
+
+		position += 1;
+	}
+	*/
+	
+
+
 };
-
-
 
 
 void SendRequestCommand( int sock, struct sockaddr_in *clntAddr, RequestBlockCommand *command ){
 	
 	sendto( sock, &command, sizeof(RequestBlockCommand), 0, (struct sockaddr *)&clntAddr, sizeof(clntAddr));
+
 };
-
-
 
 
 void TransferErrorHandling( char *errorMessage){
 
-	printf(" [Error] Transfer ");
+	printf(" [Error] Transfer \n");
 	perror( errorMessage );
 	exit(1);
 };
 
 
-
 void ReceiveRequest(){
-	// signal handler
 	
 	char blockFilePath[ 128 + 1 + sizeof(BLOCK_FOLDER_PATH) + sizeof(BLOCK_EXTENSION)];
 	FILE *block_fp = NULL;
@@ -200,21 +221,16 @@ void ReceiveRequest(){
 
 
 void ReceiveBlock(){
-	// signal handler 
-	
 	PeerInformation PeerInf;
 	void *packageBuf;
 	unsigned int clntAddrLen = sizeof(clntAddr);
 	BlockPackage *package;
-	unsigned char notExistBlockFlagsBuf[1] = {0};
-	unsigned char receiveBlockFlagsBuf[1] = {0};
-	char blockFilePath[ sizeof(BLOCK_FOLDER_PATH) + BLOCK_FILE_NAME_LENGTH + 1 +sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION)];
+	notExistBlockFlagsBuf[1] = {0};
+	receiveBlockFlags[1] = {0};
+	char blockFilePath[ sizeof(BLOCK_FOLDER_PATH) + BLOCK_FILE_NAME_LENGTH + 1 + sizeof(BLOCK_EXTENSION)];
 
-	char *encryptedBlock;
+	unsigned char *encryptedBlock;
 	unsigned char *decryptedBlock;
-
-	char AESKey[ AES_KEY_SIZE ];
-	char PeerAESKey[ AES_KEY_SIZE ];
 
 	clntAddrLen = sizeof( clntAddr );
 	packageBuf = malloc( sizeof(BlockPackage) + GetAESEncryptedDataSize(BLOCKSIZE + EVP_MAX_MD_SIZE));
@@ -224,9 +240,11 @@ void ReceiveBlock(){
 
 	package = ( BlockPackage *)packageBuf;
 
-	if ( package->fileType == NOT_EXIST_BLOCK ){
-		memcpy( notExistBlockFlagsBuf, notExistBlockFlags + (int)ceil( (double)package->fileNum / 8), 1);
-		*notExistBlockFlagsBuf |= (unsigned int)(pow(2 , 7 - (package->fileNum % 8)));
+	if ( package.fileType == NOT_EXIST_BLOCK ){
+		package.fileNum;
+		memcpy( notExistBlockFlagsBuf, notExistBlockFlags + (int)ceil( (double)package.fileNum / 8), 1);
+		notExistBlockFlagsBuf |= (package.fileNum % 8);
+		notExistBlockFlagsBuf |= (unsigned int)(pow(2 , 7 - (package.fileNum % 8)));
 		printf("peer not had the block\n");
 		// クライアントにブロックが存在しなかった場合
 	
@@ -235,17 +253,15 @@ void ReceiveBlock(){
 		encryptedBlock = malloc( BLOCKSIZE + EVP_MAX_MD_SIZE);
 		decryptedBlock = malloc( GetAESEncryptedDataSize(BLOCKSIZE + EVP_MAX_MD_SIZE));
 
-		AESDecrypt( PeerAESKey, package->blockBody, BLOCKSIZE + EVP_MAX_MD_SIZE, NULL, encryptedBlock ); // 暗号化解除
+		AESDecrypt( PeerAESKey, package.blockBody, BLOCKSIZE + EVP_MAX_MD_SIZE, NULL, encryptedBlock ); // 暗号化解除
 		AESEncrypt( AESKey, encryptedBlock, GetAESEncryptedDataSize(BLOCKSIZE + EVP_MAX_MD_SIZE), NULL, decryptedBlock);
 
-		sprintf( blockFilePath, "%s#%s(%d)%s", BLOCK_FOLDER_PATH, package->blockFileName, package->fileNum ,BLOCK_EXTENSION ); // ファイルを保存
-		FILE *block_fp = fopen( blockFilePath ,"wb" ); 
-		fwrite( decryptedBlock , GetAESEncryptedDataSize(BLOCKSIZE + EVP_MAX_MD_SIZE),1, block_fp );
-		fclose( block_fp );
-		
-		memcpy( receiveBlockFlagsBuf, receiveBlockFlags + (int)ceil( (double)package->fileNum / 8) , 1);
-		*receiveBlockFlagsBuf |= (unsigned int)(pow(2, 7 - (package->fileNum % 8)));
-		printf("receive and save block\n");
+		// ダイジェストを求める
+		CreateStringDigest();
+		sprintf( blockFilePath, "%s#%s%s", BLOCK_FOLDER_PATH, ,BLOCK_EXTENSION ); // ファイルを保存
+		fopen(); 
+		fwrite();
+		fclose();
 	}
 
 };

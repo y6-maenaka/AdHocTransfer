@@ -1,18 +1,57 @@
 #ifndef _H_TransferData_
 #define _H_TransferData_
 
+#include "ControlConnection.h"
+#include "ConvertFile.h"
+#include <math.h>
+#include <sys/socket.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <time.h>
+
+#define BLOCK_FILE_NAME_LENGTH 128+1
+
+#define EXIST_BLOCK 1
+#define NOT_EXIST_BLOCK 2
+
 typedef struct REQUEST_BLOCK_COMMAND{
-	unsigned int  position;
-	unsigned char flags[1];
+	char symbol[1];
+	char blockFileName[BLOCK_FILE_NAME_LENGTH];
+	int fileNum;
 }RequestBlockCommand;
 
 
 
+typedef struct BLOCKPACKAGE{
+	char symbol[1];
+	int fileType; // block or not exist
+	char blockFileName[ BLOCK_FILE_NAME_LENGTH ];
+	int fileNum;
+	void *blockBody;
+}BlockPackage;
+
+
+
+void BindUDPPort();
 
 void SendBlock();
+void RequestBlock();
+
+void SendRequestCommand( int sock, struct sockaddr_in *clntAddr ,RequestBlockCommand *command );
+
+void TransferErrorHandling( char *errorMessage );
+
+void ReceiveRequest();
+
 void ReceiveBlock();
 
-RequestBlockCommand FormatRequestCommand( unsigned int position, unsigned char *flags);
+RequestBlockCommand GenerateRequestCommand(char *blockFileName, int fileNum);
+RequestBlockCommand FormatRequestCommand( void *commandBuf );
+
+BlockPackage GenerateBlockPackage( int fileType ,char *blockFileName, int fileNum, void *blockBody );
+
 
 
 #endif // _H_TransferData_

@@ -25,6 +25,7 @@
 #define	RSA_PUBLIC_KEY 3
 #define AES_KEY 4
 #define UDP_PORT 5
+#define REQUEST_BLOCK 6
 
 #define COMMAND_SYMBOL $
 #define COMMAND_LENGTH sizeof(int)
@@ -35,14 +36,23 @@
 
 typedef struct PEERINFORMATION{
 
-	int TCPPeerSock;
-	int UDPPeerSock;
-	char PeerIP[4];
+	int TCPPeerSock; // control connection
+	int UDPPeerSock; // transfer data
+	char *PeerIP;
+	unsigned short PeerUDPPort;
 	int PeerSendQSize;
 	int PeerRecvQSize;
 	EVP_PKEY *PeerRSAPublicKey;
 
 }PeerInformation;
+
+
+typedef struct CONTROLCOMMAND{
+	char symbol[1];
+	int command;
+	size_t fileSize;
+	void *file;
+}ControlCommand;
 
 
 int ClientConnection(char *servIP, unsigned short servPort);

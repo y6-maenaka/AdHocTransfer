@@ -2,13 +2,14 @@
 
 int Sock;
 char AESKey[ AES_KEY_SIZE ];
-PeerInformation PeerInf;
+extern PeerInformation PeerInf;
 
-int ClientConnection(char *servIP, unsigned short servPort){
 
+
+int ClientConnection(char *servIP, unsigned short servPort){ // 送信側
 	struct sockaddr_in servAddr;
 	struct sigaction handler;
-	//PeerInformation PeerInf;
+	PeerInformation PeerInf;
 
 	if (( Sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 		ConnectionErrorHandling("socket creating failure");
@@ -30,6 +31,7 @@ int ClientConnection(char *servIP, unsigned short servPort){
 
 	SetNonBlocking(Sock);
 
+	handler.sa_handler = ReceiveCommand;
 	SetSIGIO(&handler);
 
 	return Sock;
@@ -37,13 +39,13 @@ int ClientConnection(char *servIP, unsigned short servPort){
 
 
 
-int ServerConnection(unsigned short servPort){
+int ServerConnection(unsigned short servPort){ // 受信側
 
 	int servSock;
 	struct sockaddr_in servAddr;
 	struct sockaddr_in clntAddr;
 	struct sigaction handler;
-	//PeerInformation PeerInf;
+	PeerInformation PeerInf;
 
 	if (( servSock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 		ConnectionErrorHandling("socket creating failure");
@@ -74,10 +76,9 @@ int ServerConnection(unsigned short servPort){
 	// setting signal(SIGIO) =======================
 
 	SetNonBlocking(Sock);
-
+	
+	handler.sa_handler = ReceiveCommand;
 	SetSIGIO(&handler);
-
-	//SetNonBlocking(Sock);
 
 	return Sock;
 }
@@ -85,7 +86,7 @@ int ServerConnection(unsigned short servPort){
 
 void SetSIGIO(struct sigaction *handler){
 
-	handler->sa_handler = ReceiveCommand;
+	//handler->sa_handler = ReceiveCommand;
 	handler->sa_flags = 0;
 
 	// 全てのシグナルをマスク
@@ -107,6 +108,8 @@ void SetSIGIO(struct sigaction *handler){
 	printf("===== Override signal settings =====\n");
 }
 
+
+
 void SetNonBlocking(int sock){
 
 	// シグナルの送信先をこのプロセスにする
@@ -123,6 +126,7 @@ void SetNonBlocking(int sock){
 
 
 void ConnectionErrorHandling(char *errorMessage){
+	printf(" [Error] Connection \n");
 	perror(errorMessage);
 	exit(1);
 }
@@ -280,6 +284,9 @@ void HandleCommand(const int controlMessage, const size_t fileSize, void *file){
 		case SOCKET_SENDQ_SIZE:
 			memcpy( &QSize, file, fileSize);
 			printf("Get SocketQ Size -> %d\n", QSize);
+			break;
+
+		case UDP_PORT:
 			break;
 	}
 

@@ -63,12 +63,14 @@ void FileToBlock(char *uploadFileName){
 			WriteToBlockFile( block, _readedSize, block_fp, _digestMessage, key.blockFlags, counter);
 			fclose( block_fp );
 			memcpy(_wholeDigestMessage + (counter * EVP_MAX_MD_SIZE), _digestMessage , EVP_MAX_MD_SIZE);
+			printf("===== convert to block ( block %d ) =====\n", counter + 1);
 			break;
 		}
 
 		WriteToBlockFile( block, _readedSize, block_fp, _digestMessage, key.blockFlags, counter);
 		fclose( block_fp );
 		memcpy(_wholeDigestMessage + (counter * EVP_MAX_MD_SIZE), _digestMessage, EVP_MAX_MD_SIZE);
+		printf("===== convert to block ( block %d ) =====\n", counter + 1);
 
 		counter += 1;
 	}
@@ -80,15 +82,14 @@ void FileToBlock(char *uploadFileName){
 
 	free(_wholeDigestMessage);
 
+
+	char stringDigestMessage[129];
+	CreateStringDigest( hashedWholeDigestMessage, stringDigestMessage );
+	ConvertFileToBlockDone( temporaryName, counter, stringDigestMessage );
+
 	CreateKeyFile( hashedWholeDigestMessage, key, uploadFileName, temporaryName, sizeof(key) , fileSize);
+	printf("===== create key done =====\n");
 
-	//ConvertFileToBlockDone(temporaryFileName, _temporaryFileName, sizeof(_temporaryFileName));
-
-	unsigned char buf[1] = {0};	
-	for(int i=0; i<525; i++){
-		memcpy( buf, key.blockFlags + i, 1);
-		printf("%d ", *buf);
-	}
 
 	fclose(upload_fp);
 	fclose(block_fp);
@@ -107,12 +108,13 @@ void BlockToFile(char *blockFileName){
 	fread( blockKeyBuffer, sizeof(key), 1, blockKey_fp);
 	fclose(blockKey_fp);
 
-	FormatBlockKey( blockKeyBuffer, &key);
+	//FormatBlockKey( blockKeyBuffer, &key);
+	key = FormatBlockKey( blockKeyBuffer );
 
 
 
 	FILE *block_fp = NULL;
-	char blockFilePath[ BLOCK_FOLDER_PATH_SIZE + 1 + sizeof(key.blockName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION_SIZE) + 1];
+	char blockFilePath[ BLOCK_FOLDER_PATH_SIZE + 1 + BLOCK_NAME_LENGTH + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION_SIZE) + 1];
 
 	unsigned char *readedBlock;
 	size_t encryptBlockSize = GetAESEncryptedDataSize( BLOCKSIZE + EVP_MAX_MD_SIZE );
@@ -121,9 +123,11 @@ void BlockToFile(char *blockFileName){
 	decryptBlock = malloc( BLOCKSIZE + EVP_MAX_MD_SIZE );
 
 	FILE *download_fp = fopen("DownloadFolder/sample_video.mp4", "wb");
+	char stringDigest[BLOCK_NAME_LENGTH] = {0};
+	CreateStringDigest( key.blockDigestMessage, stringDigest);
 
 	for(int i=0; i < key.blockNum; i++){
-		sprintf(blockFilePath ,"%s%%%s(%d)%s",BLOCK_FOLDER_PATH, key.blockName, i+1, BLOCK_EXTENSION);
+		sprintf(blockFilePath ,"%s#%s(%d)%s",BLOCK_FOLDER_PATH, stringDigest, i+1, BLOCK_EXTENSION);
 
 		block_fp = fopen( blockFilePath, "rb");
 
@@ -207,12 +211,11 @@ void WriteToBlockFile(Block block, size_t readedSize, FILE *block_fp, unsigned c
 
 	fwrite( encryptWriteBlock, encryptWriteBlockSize , 1, block_fp );
 
-
+	// ブロックフラグの作成(更新)
 	memcpy( &bitMapBuf, blockFlags + (counter/8) , 1);
 	*bitMapBuf |= (unsigned int)(pow(2,  7 - (counter % 8) ));
 	memcpy( blockFlags + (counter/8), &bitMapBuf, 1);
 
-	printf("%d\n",*bitMapBuf);
 
 	free(writeBlock);
 	free(encryptWriteBlock);
@@ -233,19 +236,24 @@ int CheckBlock( Block block , size_t readedBlockSize ){
 };
 
 
-void ConvertFileToBlockDone(char *temporaryFileName, unsigned char *digestMessage, size_t fileNameSize, size_t fileNum){
-	/*
-	char blockFileName[ BLOCK_FOLDER_PATH_SIZE + 1 + sizeof(temporaryFileName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION)];
-	char digestFileName[EVP_MAX_MD_SIZE + 1];
-	memcpy(digestFileName, digestMessage, EVP_MAX_MD_SIZE);
-	digestFileName[EVP_MAX_MD_SIZE] = '\0';
-	char finalyFileName[ BLOCK_FOLDER_PATH_SIZE + 1 + sizeof(digestFileName) + sizeof(char) + sizeof(int) + sizeof(char) + sizeof(BLOCK_EXTENSION)];
-	for(int i=1; i < fileNum; i++){
-		sprintf(temporaryFileName, "%s%%%s(%d)%s", BLOCK_FOLDER_PATH, temporaryName, i, BLOCK_EXTENSION);
-		sprintf();
-		rename(temporaryFileName, finalyFileName);
+void ConvertFileToBlockDone(char *temporaryName, int counter, char *stringDigestMessage){
+
+	char oldFileName[ 1 + 37 + sizeof(BLOCK_FOLDER_PATH) + sizeof(BLOCK_EXTENSION) + sizeof(char) + sizeof(int) + sizeof(char) + 1];
+	char newFileName[ 5 + 128 + sizeof(BLOCK_FOLDER_PATH) + sizeof(BLOCK_EXTENSION) + sizeof(char) + sizeof(int) + sizeof(char) + 1];
+
+	for(int i=0; i<counter + 1; i++){
+		sprintf(oldFileName,"%s%%%s(%d)%s",BLOCK_FOLDER_PATH, temporaryName, i+1, BLOCK_EXTENSION);
+		sprintf(newFileName,"%s#%s(%d)%s",BLOCK_FOLDER_PATH, stringDigestMessage, i+1, BLOCK_EXTENSION);
+
+		if ( rename( oldFileName, newFileName)  != 0 ){
+			fprintf(stderr, "can not rename the file\n");
+			//　失敗時はファイルを削除する
+			exit(1);
+			puts("here desu");
+		}
+		printf("===== rename done ( file %d ) =====\n", i+1);
 	}
-	*/
+
 };
 
 
@@ -337,7 +345,7 @@ void AESDecryptFile(char *filePath){
 };
 
 
-
+/*
 void FormatBlockKey( void *blockKeyBuffer, BlockKey *key){
 
 	memcpy( &(key->originalFileSize), blockKeyBuffer, sizeof(key->originalFileSize) );
@@ -347,6 +355,36 @@ void FormatBlockKey( void *blockKeyBuffer, BlockKey *key){
 	memcpy( key->blockName, blockKeyBuffer + sizeof(key->originalFileSize) + sizeof(key->blockNum) + sizeof(key->fileName), sizeof(key->blockName));
 
   memcpy( key->blockFlags, blockKeyBuffer + sizeof(key->originalFileSize) + sizeof(key->blockNum) + sizeof(key->fileName) + sizeof(key->blockName), sizeof(key->blockFlags));
+
+	memcpy( key->blockDigestMessage, blockKeyBuffer + sizeof(key->originalFileSize) + sizeof(key->blockNum) + sizeof(key->fileName) + sizeof(key->blockName) + sizeof(key->blockFlags), sizeof(key->blockDigestMessage));
+
+
+};
+*/
+
+
+BlockKey FormatBlockKey( void *blockKeyBuffer ){
+
+	BlockKey *key = ( BlockKey *)blockKeyBuffer;
+
+	return *key;
+};
+
+
+
+void CreateStringDigest( unsigned char *digest, char *stringDigest ){
+	char buf[3];
+	
+	char _stringDigest[129];
+	for(int i=0; i<EVP_MAX_MD_SIZE; i++){
+		sprintf( buf, "%02X", digest[i]);
+		memcpy( _stringDigest + (i*2), buf, 2);
+	}
+
+	_stringDigest[ sizeof(_stringDigest) - 1 ] = '\0';
+
+	memcpy( stringDigest, _stringDigest, sizeof(_stringDigest));
+
 
 
 };

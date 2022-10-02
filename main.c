@@ -2,15 +2,47 @@
 #include "ControlFile.h"
 #include "ControlConnection.h"
 #include "ConvertFile.h"
-#include "Sample.h"
+#include "TransferData.h"
 
 
 int main(int argc, char *argv[]){
 	LoadConfig();
 
 
+	//ReceiveBlock();
+	
+	//BindUDPPort();
+	
+	//ReceiveBlock();
 
-	/*	
+		
+	//RequestBlockCommand command = GenerateRequestCommand("2A402AB572235B3E3A4993E7CB93A1DD21326F23B55CBB98567218842CC134497FA57532C87A0A7CC2F2A2C70A8D5CB7F8EFF9F12FBEE71E987012F908569A56", 2);
+
+	//RequestBlockCommand command_1 = FormatRequestCommand(&command);
+	//printf("%s",command_1.symbol);
+	
+	
+/*
+	char tmp[12] = "hello world";
+	//char tmp[10] = "aaabbbccc";
+	unsigned char digest[ EVP_MAX_MD_SIZE ];
+	sha512Hash( tmp,  digest, sizeof(tmp));
+
+	char stringDigest[128 + 1];
+
+	//for(int i=0; i<EVP_MAX_MD_SIZE; i++){
+		//printf("%02X", digest[i]);
+	//}
+
+	CreateStringDigest( digest, stringDigest);
+
+	RequestBlockCommand command =	GenerateRequestCommand( stringDigest, 87);
+*/
+
+	//RequestBlockCommand command = FormatRequestCommand( 1 , (unsigned char *)1);
+	//printf("%c", command.symbol[0]);
+
+	/*
 	BlockKey key;
 	//printf("%zu", sizeof(unsigned char));
 	//printf("%zu", sizeof( BlockKey));
@@ -22,7 +54,7 @@ int main(int argc, char *argv[]){
 	fread(blockKeyBuffer, sizeof(BlockKey), 1, block_fp);
 
 	FormatBlockKey( blockKeyBuffer, &key);
-	
+
 	printf("originalFileSize -> %u\n", key.originalFileSize);
 	printf("fileNum -> %s\n",key.fileName);
 	printf("blockDigestMessage -> %s\n", key.blockDigestMessage);
@@ -40,10 +72,10 @@ int main(int argc, char *argv[]){
 	fclose( block_fp );
 	free(blockKeyBuffer);
 	*/
-	
-	
 
-	
+
+
+
 
 /*
 	EVP_PKEY *pkey = NULL;
@@ -57,7 +89,7 @@ int main(int argc, char *argv[]){
 	EVP_PKEY_print_public_fp(stdout, _pkey, 0 , NULL);
 	*/
 
-	/*	
+	/*
 	int sock;
 	char servIP[11] = "127.0.0.1";
 	unsigned short servPort = 8080;
@@ -66,7 +98,7 @@ int main(int argc, char *argv[]){
 	EVP_PKEY *pkey = NULL;
 	pkey = ReadRSAPublicKey();
 	int m = EVP_PKEY_size(pkey);
-	
+
 	//printf(" pkey size -> %d\n",m);
 	//EVP_PKEY_print_public_fp(stdout, pkey, 0, NULL);
 	sleep(1);
@@ -93,6 +125,7 @@ int main(int argc, char *argv[]){
 	int tmp = ServerConnection(servPort);
 	sleep(11);
 	*/
+	
 
 	//EVP_PKEY_print_public_fp( stdout, PeerInf.PeerRSAPublicKey, 0, NULL);
 	//printf("%s", PeerInf.PeerRSAPublicKey);
@@ -100,9 +133,9 @@ int main(int argc, char *argv[]){
 	//char fileName[] = "sample_video.mp4";
 	//FileToBlock(fileName);
 
-	//char fileName[] = "sample_image.ablok";
-	//BlockToFile(fileName);
-	
+	char fileName[] = "sample_image.ablok";
+	BlockToFile(fileName);
+
 
 
 	//AESEncryptFile("BlockFolder/%9003BF3B-AC66-4EEB-97EB-5009F331C624.ablock");

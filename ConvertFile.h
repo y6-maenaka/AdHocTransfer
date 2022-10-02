@@ -33,6 +33,8 @@
 
 #define UPLOAD_FOLDER_PATH_SIZE 13 // n(UploadFolder/)
 
+#define BLOCK_NAME_LENGTH 128 + 1
+
 
 typedef struct BLOCK{
 	char bodyContent[ BLOCKSIZE ];
@@ -64,12 +66,15 @@ void WriteToBlockFile(Block block, size_t readedSize, FILE *block_fp, unsigned c
 
 int CheckBlock( Block block, size_t readedBlockSize );
 
-void ConvertFileToBlockDone(char *temporaryFileName, unsigned char *digestMessage, size_t fileNameSize, size_t fileNum);
+void ConvertFileToBlockDone( char *temporaryName, int counter, char *stringDigestMessage);
 
 void AESEncryptFile(char *filePath);
 void AESDecryptFile(char *filePath);
 
-void FormatBlockKey( void *blockKeyBuffer, BlockKey *key);
+//void FormatBlockKey( void *blockKeyBuffer, BlockKey *key);
+BlockKey FormatBlockKey( void *blockKeyBuffer );
+
+void CreateStringDigest( unsigned char *digest,char *stringDigest ); // 16進数→文字列 不適コード
 
 
 #endif // _H_ConvertFile_
