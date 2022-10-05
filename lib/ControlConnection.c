@@ -1,7 +1,8 @@
 #include "../header/ControlConnection.h"
 
+
 int Sock;
-char AESKey[ AES_KEY_SIZE ];
+extern char AESKey[ AES_KEY_SIZE ];
 extern PeerInformation PeerInf;
 
 
@@ -17,25 +18,26 @@ int ClientConnection(char *servIP, unsigned short servPort){ // 送信側
 
 	memset(&servAddr, 0x00, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = inet_addr(servIP);
-	servAddr.sin_port = htons(servPort);  // host to network short
+	servAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	//servAddr.sin_addr.s_addr = inet_addr( servIP );
+	//servAddr.sin_port = htons(servPort);  // host to network short
+	servAddr.sin_port = htons(8080);
 
 
 	// IPAddrから汎用Addrにキャスト
 	if( connect(Sock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
 		ConnectionErrorHandling("connect failure");
 
-	printf("Client | Socket Generated -> %d\n", Sock);
-
 	PeerInf.TCPPeerSock = Sock;
 
 	SetNonBlocking(Sock);
 
 	handler.sa_handler = ReceiveCommand;
-	SetSIGIO(&handler);
+	SetSignal(&handler, SIGIO);
 
 	return Sock;
 }
+
 
 
 
@@ -55,6 +57,7 @@ int ServerConnection(unsigned short servPort){ // 受信側
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY); // inet_addr
 	servAddr.sin_port = htons(servPort);
+
 
 	if ( bind(servSock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
 		ConnectionErrorHandling("bind failure");
@@ -76,15 +79,16 @@ int ServerConnection(unsigned short servPort){ // 受信側
 	// setting signal(SIGIO) =======================
 
 	SetNonBlocking(Sock);
-	
+
 	handler.sa_handler = ReceiveCommand;
-	SetSIGIO(&handler);
+	SetSignal(&handler, SIGIO);
 
 	return Sock;
 }
 
 
-void SetSIGIO(struct sigaction *handler){
+
+void SetSignal(struct sigaction *handler, int signalType){
 
 	//handler->sa_handler = ReceiveCommand;
 	handler->sa_flags = 0;
@@ -102,7 +106,7 @@ void SetSIGIO(struct sigaction *handler){
 		ConnectionErrorHandling("sigdelset failure");
 
 	// デフォルトのシグナル設定をオーバーライド
-	if ( sigaction(SIGIO, handler, 0) < 0)
+	if ( sigaction(signalType, handler, 0) < 0)
 		ConnectionErrorHandling("sigaction failure");
 
 	printf("===== Override signal settings =====\n");
@@ -140,22 +144,30 @@ void SIGIOHandler(int signalType){
 void SendCommand( int sock ,int command, const size_t fileSize, void *file){
 
 	int sendedSize;
-	size_t formatCommandSize;
+	//size_t formatCommandSize;
 	ssize_t sendSize;
+	ControlCommand controlCommand;
 
-	void *formatCommand;
-	formatCommandSize = sizeof(char) + sizeof(int) + sizeof(size_t);
-	formatCommand = malloc( formatCommandSize );
+	//void *formatCommand;
+	//formatCommandSize = sizeof(char) + sizeof(int) + sizeof(size_t);
+	//formatCommand = malloc( formatCommandSize );
 
-	memcpy(formatCommand, "$", sizeof(char));
-	memcpy(formatCommand + 1, &command, sizeof(int));
-	memcpy(formatCommand + 1 + sizeof(int), &fileSize, sizeof(size_t));
+	//memcpy(formatCommand, "$", sizeof(char));
+	controlCommand.command = command;
+	controlCommand.fileSize = fileSize;
+	//memcpy(formatCommand + 1, &command, sizeof(int));
+	//memcpy(formatCommand + 1 + sizeof(int), &fileSize, sizeof(size_t));
 
-	void *packageCommand;
-	packageCommand = malloc( formatCommandSize + fileSize );
 
-	memcpy( packageCommand, formatCommand, formatCommandSize);
-	memcpy( packageCommand + formatCommandSize, file, fileSize);
+	unsigned char *packageCommand;
+	packageCommand = malloc( sizeof(char) + sizeof(ControlCommand) + fileSize );
+	// symbol + sizeof(ControCommand) + fileSize
+
+
+	memcpy( packageCommand ,"$", sizeof(char));
+	memcpy( packageCommand + 1, &controlCommand, sizeof(ControlCommand));
+	memcpy( packageCommand + 1 + sizeof(ControlCommand), file, sizeof(fileSize));
+
 
 	//EVP_PKEY *pkey = NULL;
 	//void *tmp;
@@ -163,12 +175,23 @@ void SendCommand( int sock ,int command, const size_t fileSize, void *file){
 	//memcpy(&tmp, packageCommand + formatCommandSize, 8);
 	//EVP_PKEY_print_public_fp(stdout, pkey, 0, NULL);
 	//EVP_PKEY_print_public_fp(stdout, (EVP_PKEY *)tmp, 0, NULL);
+	
+	sendSize = send(sock, &packageCommand, sizeof(char) + sizeof(controlCommand) + (size_t)fileSize, 0);
 
-	sendSize = send(sock, packageCommand, formatCommandSize + fileSize, 0);
+	printf(" packageSize -> %zu\n", sizeof(controlCommand) + 1 + fileSize );
+	printf(" sendSize - > %zu\n", sendSize);
 
-	printf("===== Send Package Command ( %zu bytes ) =====\n", sendSize);
+	char buf[1] = {0};
+	unsigned short _port;
+	memcpy( buf , packageCommand, 1);
+	ControlCommand *_command = (ControlCommand *)( &packageCommand + 1);
+	printf("%d\n", _command->command);
+	printf("%zu\n", _command->fileSize);
+	memcpy(&_port, packageCommand + 1 + sizeof(ControlCommand) , _command->fileSize );
+	printf("%d\n", _port);
+	//printf("%c\n", buf[0]);
 
-	free(formatCommand);
+	//free(formatCommand);
 	free(packageCommand);
 
 }
@@ -184,8 +207,8 @@ void GetSocketQSize(int sock, int *SendQSize, int *RecvQSize){
 };
 
 
-void SetSocketQSize(int sock, int SendQSize, int RecvQSize){	
-	
+void SetSocketQSize(int sock, int SendQSize, int RecvQSize){
+
 	unsigned int socketQOptLen = sizeof( SendQSize );
 
 	if ( SendQSize ){
@@ -203,11 +226,12 @@ void SetSocketQSize(int sock, int SendQSize, int RecvQSize){
 void ReceiveCommand(){
 
 	char buf[1] = {0};
-	unsigned char controlMessage[ COMMAND_LENGTH + FILE_SIZE_LENGTH ];
-	int command;
-	size_t fileSize;
-	void *file;
+	unsigned char *commandBuf;
+	//int command;
+	//size_t fileSize;
+	unsigned char *file;
 	ssize_t recvSize = 0;
+	ControlCommand *controlCommand;
 
 	// ===== selectの設定 =====
 
@@ -224,9 +248,13 @@ void ReceiveCommand(){
 
 	if ( select(maxDescriptor, &sockSet, NULL, NULL, &selTimeout) > 0 ){
 
+		commandBuf = malloc( sizeof(ControlCommand) );
+
 		for(;;){
 
 			recvSize = recv(Sock, buf, 1, 0);
+
+			printf(" --- > %c\n", buf[0]);
 
 			if ( errno == EWOULDBLOCK || recvSize <= 0){
 				printf("brake with EWOULDBLOCK\n");
@@ -235,29 +263,36 @@ void ReceiveCommand(){
 
 			if ( buf[0] == '$' ){
 
-				recvSize = recv( Sock, controlMessage, sizeof(controlMessage) , 0);
+				recvSize = recv( Sock, commandBuf, sizeof(ControlCommand) , 0);
+				controlCommand = ( ControlCommand *)commandBuf;
+				printf(" - - - - - > %d\n", controlCommand->command);
 
 				if( errno == EWOULDBLOCK  /* EAGAIN */ || recvSize <= 0 ){
 					break;
 					// SIGALRMが送信される(or error)とrecvは-1を返す。
 				 }
 
-				memcpy( &command, controlMessage, sizeof(command));
-				memcpy( &fileSize, controlMessage + sizeof(command), sizeof(fileSize));
+				//memcpy( &command, controlMessage, sizeof(command));
+				//memcpy( &fileSize, controlMessage + sizeof(command), sizeof(fileSize));
 
 				//printf(" command is -> %d\n", command);
 				//printf(" file size is -> %zu\n", fileSize);
 
 				file = NULL;
 
-				printf("file size is -> %zu\n", fileSize);
+				printf("file size is -> %zu\n", controlCommand->fileSize);
+				printf("command is -> %d\n" , controlCommand->command);
 
-				if( fileSize != 0){
-					file = malloc(fileSize);
-					recvSize = recv( Sock , file, fileSize, 0);
+				if( controlCommand->fileSize != 0){
+					file = malloc(controlCommand->fileSize);
+					memset( file, 0x00, sizeof(controlCommand->fileSize));
+					recvSize = recv( Sock , file, controlCommand->fileSize, 0);
+
+					EVP_PKEY_print_public_fp( stdout, (EVP_PKEY *)file, 0, NULL);
 				}
 
-				HandleCommand( command, fileSize, file);
+				HandleCommand( controlCommand->command, controlCommand->fileSize, file);
+				free(commandBuf);
 
 			}
 		}
@@ -268,8 +303,8 @@ void ReceiveCommand(){
 
 
 void HandleCommand(const int controlMessage, const size_t fileSize, void *file){
-	
-	
+
+
 	switch(controlMessage){
 		int QSize;
 

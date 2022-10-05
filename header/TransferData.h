@@ -34,10 +34,10 @@ typedef struct BLOCKPACKAGE{
 
 
 
-void BindUDPPort();
+unsigned short BindUDPPort();
 
 void SendBlock();
-void RequestBlock();
+void RequestBlock( PeerInformation *PeerInf );
 
 void SendRequestCommand( int sock, struct sockaddr_in *clntAddr ,RequestBlockCommand *command );
 

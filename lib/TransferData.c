@@ -8,28 +8,28 @@ struct sockaddr_in servAddr;
 struct sockaddr_in clntAddr;
 
 
-void BindUDPPort(){ // 送信側
+
+unsigned short BindUDPPort( PeerInformation *PeerInf){ // 送信側
 									 
-	PeerInformation PeerInf;
-	struct sigaction handler;
+	//struct sigaction handler;
 	
 	// ポート番号をランダムで選定する
 	srand( (unsigned int)time(NULL));
 
 
-	if (( PeerInf.UDPPeerSock = socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 )
+	if (( PeerInf->UDPPeerSock = socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 )
 		TransferErrorHandling("socket creating failure");
 
-
+	unsigned short randomPort;
 	for( int i=0; i<5; i++ ){
-		short int randomPort = (short)((rand() % 16383) + 49512); //　ダイナミックポートナンバーを使う
+		randomPort = (unsigned short)((rand() % 16383) + 49512); //　ダイナミックポートナンバーを使う
 
 		servAddr.sin_family = AF_INET;
 		servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 		servAddr.sin_port = htons(randomPort);
 
 
-		if ( bind( PeerInf.UDPPeerSock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0){
+		if ( bind( PeerInf->UDPPeerSock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0){
 			if ( i >= 4 )
 				TransferErrorHandling("bind failure");
 
@@ -42,10 +42,7 @@ void BindUDPPort(){ // 送信側
 
 	};
 
-	SetNonBlocking( PeerInf.UDPPeerSock );
-
-	handler.sa_handler = ReceiveRequest;
-	SetSIGIO(&handler);
+	return randomPort;
 
 };
 
@@ -59,16 +56,12 @@ void SendBlockPackage( int sock, struct sockaddr_in *clntAddr ,BlockPackage *pac
 
 
 
-void RequestBlock( ){ // 受信側
+void RequestBlock( PeerInformation *PeerInf ){ // 受信側
 
-	PeerInformation PeerInf;
 	BlockKey key;
-
-
 
 	memset( receiveBlockFlags, 0x00, sizeof(receiveBlockFlags));
 	memset( notExistBlockFlags, 0x00, sizeof(notExistBlockFlags));
-
 
 	// ====================================
 	RequestBlockCommand command;
@@ -94,20 +87,20 @@ void RequestBlock( ){ // 受信側
 
 	memset( &clntAddr, 0x00, sizeof(clntAddr));
 	clntAddr.sin_family = AF_INET;
-	clntAddr.sin_addr.s_addr = inet_addr( PeerInf.PeerIP );
-	clntAddr.sin_port = htons( PeerInf.PeerUDPPort );
+	clntAddr.sin_addr.s_addr = inet_addr( PeerInf->PeerIP );
+	clntAddr.sin_port = htons( PeerInf->PeerUDPPort );
 
 	// ====================================================
 
 
 	CreateStringDigest( key.blockDigestMessage , blockFileNameString);
 
-
 	
 	unsigned char blockFlagsBuf[1] = {0};	
 	unsigned char receiveBlockFlagsBuf[1] = {0};
 	unsigned char notExistBlockFlagsBuf[1] = {0};
-	unsigned char judgeByte[1] = {0};
+	unsigned char doneFlags[1] = {0};
+	memset( doneFlags, 0x00, sizeof(unsigned char));
 
 	for(;;){
 		memcpy( blockFlagsBuf, key.blockFlags + position, 1);
@@ -116,9 +109,12 @@ void RequestBlock( ){ // 受信側
 
 		for(int i=7; i>=0;i--){
 		  //printf("%d " , ((blockFlagsBuf[0]>>i)&1) ^ (( receiveBlockFlagsBuf[0]>>i)&1)  );
+			doneFlags[0] &= (( ((blockFlagsBuf[0]>>i)&1) ^ (( receiveBlockFlagsBuf[0]>>i)&1) ) & ~((notExistBlockFlagsBuf[0]>>i)&1) );
+			printf("%d", (int)doneFlags[0]);
+
 		   if ( ( ((blockFlagsBuf[0]>>i)&1) ^ (( receiveBlockFlagsBuf[0]>>i)&1) ) & ~((notExistBlockFlagsBuf[0]>>i)&1) ){
 				command = GenerateRequestCommand( blockFileNameString, position * 8 + ( 8 - i));
-				RequestBlock( PeerInf.UDPPeerSock, &clntAddr, &command );
+				SendRequestCommand( PeerInf->UDPPeerSock, &clntAddr, &command );
 
 				printf("%d ", position * 8 + (8 -i));
 			 }else{
@@ -127,8 +123,13 @@ void RequestBlock( ){ // 受信側
 		}
 
 		position += 1;
-		if ( position >= 40 ) break;
-		if ( position >= BLOCK_FLAGS_SIZE ) position = 0;
+
+		if ( position >= key.blockNum && doneFlags[0] ) break;
+
+		if ( position >= key.blockNum ){
+			position = 0;
+			memset( doneFlags, 0x00, sizeof(unsigned char));
+		}
 	}
 
 };

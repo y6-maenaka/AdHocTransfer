@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
@@ -47,18 +48,17 @@ typedef struct PEERINFORMATION{
 }PeerInformation;
 
 
+
 typedef struct CONTROLCOMMAND{
-	char symbol[1];
 	int command;
 	size_t fileSize;
-	void *file;
 }ControlCommand;
 
 
 int ClientConnection(char *servIP, unsigned short servPort);
 int ServerConnection(unsigned short servPort);
 
-void SetSIGIO(struct sigaction *handler);
+void SetSignal(struct sigaction *handler, int signalType );
 void SetNonBlocking(int sock);
 
 void SendControlMessage(int socket);
