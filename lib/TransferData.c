@@ -36,11 +36,14 @@ unsigned short BindUDPPort( PeerInformation *PeerInf){ // 送信側
 			continue;
 
 		}else{
+			printf("BIND UDP PORT ( %d )\n", randomPort);
 			break;
 		}
 
 
 	};
+
+	printf(" -> sock -> %d\n", PeerInf->UDPPeerSock);
 
 	return randomPort;
 
@@ -163,11 +166,11 @@ void ReceiveRequest(){
 	void *blockBuf;
 	unsigned int servAddrLen = sizeof(servAddr);
 	BlockPackage package;
-	PeerInformation PeerInf;
+	PeerInformation *PeerInf = GetPeerInformation();
 
 	request = malloc( sizeof( RequestBlockCommand ));
 
-	recvfrom( PeerInf.UDPPeerSock, request, sizeof( RequestBlockCommand), 0, (struct sockaddr *)&servAddr, &servAddrLen );
+	recvfrom( PeerInf->UDPPeerSock, request, sizeof( RequestBlockCommand), 0, (struct sockaddr *)&servAddr, &servAddrLen );
 
 	RequestBlockCommand command = FormatRequestCommand( &request );
 
@@ -190,7 +193,7 @@ void ReceiveRequest(){
 		fread(blockBuf, BLOCKSIZE+EVP_MAX_MD_SIZE, 1 ,block_fp);
 		package = GenerateBlockPackage( EXIST_BLOCK, command.blockFileName, command.fileNum, &blockBuf);
 
-		SendBlockPackage( PeerInf.UDPPeerSock, &servAddr , &package );
+		SendBlockPackage( PeerInf->UDPPeerSock, &servAddr , &package );
 		
 		printf("===== Sended Block =====\n");
 
@@ -203,7 +206,7 @@ void ReceiveRequest(){
 void ReceiveBlock(){
 	// signal handler 
 	
-	PeerInformation PeerInf;
+	PeerInformation *PeerInf = GetPeerInformation();
 	void *packageBuf;
 	unsigned int clntAddrLen = sizeof(clntAddr);
 	BlockPackage *package;
@@ -214,14 +217,14 @@ void ReceiveBlock(){
 	char *encryptedBlock;
 	unsigned char *decryptedBlock;
 
-	char AESKey[ AES_KEY_SIZE ];
+	char *AESKey = GetAESKey(); 
 	char PeerAESKey[ AES_KEY_SIZE ];
 
 	clntAddrLen = sizeof( clntAddr );
 	packageBuf = malloc( sizeof(BlockPackage) + GetAESEncryptedDataSize(BLOCKSIZE + EVP_MAX_MD_SIZE));
 
 
-	recvfrom( PeerInf.UDPPeerSock, packageBuf, sizeof(BlockPackage) + GetAESEncryptedDataSize(BLOCKSIZE + EVP_MAX_MD_SIZE), 0, (struct sockaddr *)&clntAddr, &clntAddrLen);
+	recvfrom( PeerInf->UDPPeerSock, packageBuf, sizeof(BlockPackage) + GetAESEncryptedDataSize(BLOCKSIZE + EVP_MAX_MD_SIZE), 0, (struct sockaddr *)&clntAddr, &clntAddrLen);
 
 	package = ( BlockPackage *)packageBuf;
 

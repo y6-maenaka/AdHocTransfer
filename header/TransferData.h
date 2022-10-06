@@ -3,6 +3,7 @@
 
 #include "ControlConnection.h"
 #include "ConvertFile.h"
+#include "ControlFile.h"
 #include <math.h>
 #include <sys/socket.h>
 #include <stdlib.h>
@@ -15,6 +16,7 @@
 
 #define EXIST_BLOCK 1
 #define NOT_EXIST_BLOCK 2
+
 
 typedef struct REQUEST_BLOCK_COMMAND{
 	char symbol[1];

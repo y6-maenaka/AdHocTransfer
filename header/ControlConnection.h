@@ -44,6 +44,7 @@ typedef struct PEERINFORMATION{
 	int PeerSendQSize;
 	int PeerRecvQSize;
 	EVP_PKEY *PeerRSAPublicKey;
+	//char PeerAESKey[ AES_KEY_SIZE ];
 
 }PeerInformation;
 
@@ -54,6 +55,12 @@ typedef struct CONTROLCOMMAND{
 	size_t fileSize;
 }ControlCommand;
 
+
+//extern char AESKey[ AES_KEY_SIZE ];
+//extern PeerInformation PeerInf;
+
+
+PeerInformation *GetPeerInformation();
 
 int ClientConnection(char *servIP, unsigned short servPort);
 int ServerConnection(unsigned short servPort);

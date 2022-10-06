@@ -5,6 +5,7 @@
 #include "header/TransferData.h"
 
 #include <pthread.h>
+#include <unistd.h>
 
 #define SIGRTMIN 33
 
@@ -27,7 +28,7 @@ int AllowTransferDoneSignal();
 
 int main( int argc, char *argv[]){
 
-	PeerInformation PeerInf;
+	PeerInformation *PeerInf = GetPeerInformation();
 	LoadConfig();
 
 	char *servIP;
@@ -41,26 +42,24 @@ int main( int argc, char *argv[]){
 	//BindUDPPort();
 	//SendCommand( PeerInf.TCPPeerSock, UDP_PORT, sizeof(int), &PeerInf.UDPPeerPort);
 	
-	int sock;
-	PeerInf.TCPPeerSock = ClientConnection( servIP, servPort );
-
+	PeerInf->TCPPeerSock = ClientConnection( servIP, servPort );
 
 	// -----ノンブロッキング設定--------- 
-	struct sigaction handler;
-	handler.sa_handler = ReceiveRequest;
+	//struct sigaction handler;
+	//handler.sa_handler = ReceiveRequest;
 
-	unsigned short port = BindUDPPort( &PeerInf );
-	printf(" BIND PORT -> %d\n" , port);
-	SetNonBlocking( PeerInf.UDPPeerSock );
-	SetSignal( &handler, SIGIO );
+	//PeerInf->PeerUDPPort = BindUDPPort( PeerInf );
+	//SetNonBlocking( PeerInf->UDPPeerSock );
+	//SetSignal( &handler, SIGIO );
 	// ------------------------
 
-	SendCommand( PeerInf.TCPPeerSock, UDP_PORT, sizeof(PeerInf.PeerUDPPort), &PeerInf.PeerUDPPort );
+	sleep(2);
+	SendCommand( PeerInf->TCPPeerSock, UDP_PORT, sizeof(PeerInf->PeerUDPPort), &PeerInf->PeerUDPPort );
 
 
 	// === TransferThreadの起動=================
 	struct ThreadArgs threadArgs;
-	threadArgs.PeerInf = PeerInf;
+	threadArgs.PeerInf = *PeerInf;
 	threadArgs.mainThreadID = pthread_self();
 	//pthread_t threadID;		
 	//pthread_create(%threadID, NULL, TransferThread, (void *)threadArgs);

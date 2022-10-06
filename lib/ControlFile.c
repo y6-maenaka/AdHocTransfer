@@ -1,7 +1,7 @@
 #include "../header/ControlFile.h"
 #include "../header/HashCipher.h"
 
-extern char AESKey[AES_KEY_SIZE];
+static char AESKey[AES_KEY_SIZE];
 
 long int GetFileSize(FILE *fp){
 
@@ -54,4 +54,9 @@ void LoadConfig(){
 
 	fclose(config_fp);
 
+}
+
+
+char *GetAESKey(){
+	return AESKey;
 }

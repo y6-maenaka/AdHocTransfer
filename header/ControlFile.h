@@ -13,5 +13,7 @@ void GenerateUUID(uuid_t uuid);
 void GenerateUUIDString(char *uuidFileNameString);
 void LoadConfig();
 
+char *GetAESKey();
+
 
 #endif // _H_ControlFile_

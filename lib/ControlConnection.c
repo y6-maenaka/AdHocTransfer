@@ -2,19 +2,17 @@
 
 
 int Sock;
-extern char AESKey[ AES_KEY_SIZE ];
-extern PeerInformation PeerInf;
-
+static PeerInformation PeerInf;
 
 
 int ClientConnection(char *servIP, unsigned short servPort){ // 送信側
 	struct sockaddr_in servAddr;
 	struct sigaction handler;
-	PeerInformation PeerInf;
 
 	if (( Sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 		ConnectionErrorHandling("socket creating failure");
-
+	
+	PeerInf.PeerIP = servIP;
 
 	memset(&servAddr, 0x00, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
@@ -24,11 +22,12 @@ int ClientConnection(char *servIP, unsigned short servPort){ // 送信側
 	servAddr.sin_port = htons(8080);
 
 
+
 	// IPAddrから汎用Addrにキャスト
 	if( connect(Sock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
 		ConnectionErrorHandling("connect failure");
 
-	PeerInf.TCPPeerSock = Sock;
+	printf("=== Connect With ( %d ) Socket ===\n", Sock);
 
 	SetNonBlocking(Sock);
 
@@ -43,10 +42,10 @@ int ClientConnection(char *servIP, unsigned short servPort){ // 送信側
 
 int ServerConnection(unsigned short servPort){ // 受信側
 
-	int servSock;
 	struct sockaddr_in servAddr;
 	struct sockaddr_in clntAddr;
 	struct sigaction handler;
+	int servSock;
 	PeerInformation PeerInf;
 
 	if (( servSock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
@@ -74,14 +73,23 @@ int ServerConnection(unsigned short servPort){ // 受信側
 	printf("Server | Socket Generated -> %d\n", Sock);
 
 	PeerInf.TCPPeerSock = Sock;
-	memcpy(PeerInf.PeerIP, &(clntAddr.sin_addr.s_addr), 4);
+
+	puts("hy");
+
+	//memcpy(PeerInf.PeerIP, &(clntAddr.sin_addr.s_addr), 4);
+
+	puts(" DONE ");
 
 	// setting signal(SIGIO) =======================
 
 	SetNonBlocking(Sock);
 
+	puts(" here ");
+
 	handler.sa_handler = ReceiveCommand;
 	SetSignal(&handler, SIGIO);
+
+	puts(" done here");
 
 	return Sock;
 }
@@ -143,7 +151,7 @@ void SIGIOHandler(int signalType){
 
 void SendCommand( int sock ,int command, const size_t fileSize, void *file){
 
-	int sendedSize;
+	//int sendedSize;
 	//size_t formatCommandSize;
 	ssize_t sendSize;
 	ControlCommand controlCommand;
@@ -157,17 +165,27 @@ void SendCommand( int sock ,int command, const size_t fileSize, void *file){
 	controlCommand.fileSize = fileSize;
 	//memcpy(formatCommand + 1, &command, sizeof(int));
 	//memcpy(formatCommand + 1 + sizeof(int), &fileSize, sizeof(size_t));
+	
+	printf(" comman -> [ %d ]\n", controlCommand.command);
+	printf(" fileSize -> [ %zu ]\n", controlCommand.fileSize);
 
 
 	unsigned char *packageCommand;
-	packageCommand = malloc( sizeof(char) + sizeof(ControlCommand) + fileSize );
-	// symbol + sizeof(ControCommand) + fileSize
+	packageCommand = malloc( sizeof(char) + sizeof(ControlCommand) + fileSize ); // n(symbol) + sizeof(ControlCommand) + fileSize
 
 
-	memcpy( packageCommand ,"$", sizeof(char));
-	memcpy( packageCommand + 1, &controlCommand, sizeof(ControlCommand));
-	memcpy( packageCommand + 1 + sizeof(ControlCommand), file, sizeof(fileSize));
+	//memcpy( packageCommand ,"$", sizeof(char));
+	packageCommand[0] = '$';
+	memcpy( packageCommand + sizeof(char), &controlCommand, sizeof(ControlCommand));
+	memcpy( packageCommand + sizeof(char) + sizeof(ControlCommand), file, sizeof(fileSize));
 
+	ControlCommand *t_command = ( ControlCommand *)(packageCommand + 1);
+	unsigned short *_t = ( unsigned short *)(packageCommand + 1 + sizeof(ControlCommand));
+	printf("%d\n", t_command->command);
+	printf("%zu\n",t_command->fileSize);
+	printf("%d\n", *_t);
+
+	printf("%s\n", packageCommand);
 
 	//EVP_PKEY *pkey = NULL;
 	//void *tmp;
@@ -176,22 +194,8 @@ void SendCommand( int sock ,int command, const size_t fileSize, void *file){
 	//EVP_PKEY_print_public_fp(stdout, pkey, 0, NULL);
 	//EVP_PKEY_print_public_fp(stdout, (EVP_PKEY *)tmp, 0, NULL);
 	
-	sendSize = send(sock, &packageCommand, sizeof(char) + sizeof(controlCommand) + (size_t)fileSize, 0);
+	sendSize = send(sock, &packageCommand, sizeof(char) + sizeof(ControlCommand) + (size_t)fileSize, 0);
 
-	printf(" packageSize -> %zu\n", sizeof(controlCommand) + 1 + fileSize );
-	printf(" sendSize - > %zu\n", sendSize);
-
-	char buf[1] = {0};
-	unsigned short _port;
-	memcpy( buf , packageCommand, 1);
-	ControlCommand *_command = (ControlCommand *)( &packageCommand + 1);
-	printf("%d\n", _command->command);
-	printf("%zu\n", _command->fileSize);
-	memcpy(&_port, packageCommand + 1 + sizeof(ControlCommand) , _command->fileSize );
-	printf("%d\n", _port);
-	//printf("%c\n", buf[0]);
-
-	//free(formatCommand);
 	free(packageCommand);
 
 }
@@ -224,7 +228,10 @@ void SetSocketQSize(int sock, int SendQSize, int RecvQSize){
 
 
 void ReceiveCommand(){
-
+	
+	puts(" in receive command");
+	printf(" %d ", Sock);
+	
 	char buf[1] = {0};
 	unsigned char *commandBuf;
 	//int command;
@@ -245,14 +252,15 @@ void ReceiveCommand(){
 	selTimeout.tv_usec = 0;
 
 	// =======================
+	puts(" i'm in here");
 
 	if ( select(maxDescriptor, &sockSet, NULL, NULL, &selTimeout) > 0 ){
-
+		puts(" jajajaj ");
 		commandBuf = malloc( sizeof(ControlCommand) );
 
 		for(;;){
 
-			recvSize = recv(Sock, buf, 1, 0);
+			recvSize = recv(servSock, buf, 1, 0);
 
 			printf(" --- > %c\n", buf[0]);
 
@@ -332,4 +340,10 @@ void HandleCommand(const int controlMessage, const size_t fileSize, void *file){
 
 void ReceiveCommandTimeOut(){
 	printf("ControlMessage empty");
+};
+
+
+
+PeerInformation *GetPeerInformation(){
+	return &PeerInf;
 };
