@@ -6,8 +6,12 @@
 
 #include <pthread.h>
 #include <unistd.h>
+#include <stdbool.h>
+
 
 #define SIGRTMIN 33
+
+bool transferDoneFlag = false;
 
 
 struct ThreadArgs{
@@ -48,13 +52,24 @@ int main( int argc, char *argv[]){
 	//struct sigaction handler;
 	//handler.sa_handler = ReceiveRequest;
 
-	//PeerInf->PeerUDPPort = BindUDPPort( PeerInf );
+	PeerInf->PeerUDPPort = BindUDPPort( PeerInf );
 	//SetNonBlocking( PeerInf->UDPPeerSock );
 	//SetSignal( &handler, SIGIO );
 	// ------------------------
+	
 
-	sleep(2);
-	SendCommand( PeerInf->TCPPeerSock, UDP_PORT, sizeof(PeerInf->PeerUDPPort), &PeerInf->PeerUDPPort );
+	//sleep(3);
+	//SendCommand( PeerInf->TCPPeerSock, UDP_PORT, sizeof(PeerInf->PeerUDPPort), &(PeerInf->PeerUDPPort) );
+
+	EVP_PKEY *pkey = NULL;
+	pkey = ReadRSAPublicKey();
+
+	//SendCommand( PeerInf->TCPPeerSock, RSA_PUBLIC_KEY, EVP_PKEY_size(pkey)/8, pkey);
+	//sleep(3);
+
+	int QSize = SOCKET_BASE_SENDQ_SIZE;
+	sleep(3);
+	SendCommand( PeerInf->TCPPeerSock, SOCKET_SENDQ_SIZE, sizeof(int), &QSize);
 
 
 	// === TransferThreadの起動=================
@@ -65,6 +80,11 @@ int main( int argc, char *argv[]){
 	//pthread_create(%threadID, NULL, TransferThread, (void *)threadArgs);
 	
 	// ===========================================
+	
+	//for(;;){
+		//pause();
+		//if ( transferDoneFlag ) break;
+	//}
 
 	sleep( 5 );
 
@@ -113,5 +133,6 @@ int AllowTransferDoneSignal(){
 
 
 void ReceiveTransferDoneSignal(){
+	transferDoneFlag = true;
 	puts("Done TransferData");
 };

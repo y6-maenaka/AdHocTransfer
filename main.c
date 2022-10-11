@@ -8,9 +8,6 @@
 int main(int argc, char *argv[]){
 	LoadConfig();
 
-	printf("%zu\n", sizeof(RequestBlockCommand));
-
-
 	//ReceiveBlock();
 	
 	//BindUDPPort();
@@ -92,19 +89,21 @@ int main(int argc, char *argv[]){
 	*/
 
 
-	/*	
+	/*
 	int sock;
 	char servIP[11] = "127.0.0.1";
 	unsigned short servPort = 8080;
 	sock = ClientConnection(servIP, servPort);
+	printf("sock = > %d\n", sock);
 
 	EVP_PKEY *pkey = NULL;
 	pkey = ReadRSAPublicKey();
 	int m = EVP_PKEY_size(pkey);
+	printf("pkey size -> %d\n" , m);
 
 	//printf(" pkey size -> %d\n",m);
 	EVP_PKEY_print_public_fp(stdout, pkey, 0, NULL);
-	sleep(1);
+	sleep(2);
 	SendCommand(sock,  RSA_PUBLIC_KEY, sizeof(pkey), &pkey);
 	//EVP_PKEY_print_public_fp(stdout, pkey, 0, NULL);
 	//puts("send command done 1");
@@ -121,8 +120,6 @@ int main(int argc, char *argv[]){
 	close(sock);
 	*/
 	
-
-
 	/*
 	int sock;
 	PeerInformation PeerInf;

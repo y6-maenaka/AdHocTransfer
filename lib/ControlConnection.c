@@ -72,25 +72,18 @@ int ServerConnection(unsigned short servPort){ // 受信側
 
 	printf("Server | Socket Generated -> %d\n", Sock);
 
-	PeerInf.TCPPeerSock = Sock;
-
-	puts("hy");
+	//PeerInf.TCPPeerSock = Sock;
 
 	//memcpy(PeerInf.PeerIP, &(clntAddr.sin_addr.s_addr), 4);
-
-	puts(" DONE ");
 
 	// setting signal(SIGIO) =======================
 
 	SetNonBlocking(Sock);
 
-	puts(" here ");
-
 	handler.sa_handler = ReceiveCommand;
 	SetSignal(&handler, SIGIO);
 
-	puts(" done here");
-
+	printf(" connect socket is -> %d\n", Sock);
 	return Sock;
 }
 
@@ -151,50 +144,31 @@ void SIGIOHandler(int signalType){
 
 void SendCommand( int sock ,int command, const size_t fileSize, void *file){
 
-	//int sendedSize;
-	//size_t formatCommandSize;
 	ssize_t sendSize;
 	ControlCommand controlCommand;
 
-	//void *formatCommand;
-	//formatCommandSize = sizeof(char) + sizeof(int) + sizeof(size_t);
-	//formatCommand = malloc( formatCommandSize );
-
-	//memcpy(formatCommand, "$", sizeof(char));
 	controlCommand.command = command;
 	controlCommand.fileSize = fileSize;
-	//memcpy(formatCommand + 1, &command, sizeof(int));
-	//memcpy(formatCommand + 1 + sizeof(int), &fileSize, sizeof(size_t));
 	
 	printf(" comman -> [ %d ]\n", controlCommand.command);
 	printf(" fileSize -> [ %zu ]\n", controlCommand.fileSize);
 
 
-	unsigned char *packageCommand;
+	char *packageCommand;
 	packageCommand = malloc( sizeof(char) + sizeof(ControlCommand) + fileSize ); // n(symbol) + sizeof(ControlCommand) + fileSize
 
-
-	//memcpy( packageCommand ,"$", sizeof(char));
-	packageCommand[0] = '$';
+	memcpy( packageCommand, "$", sizeof(char));
 	memcpy( packageCommand + sizeof(char), &controlCommand, sizeof(ControlCommand));
 	memcpy( packageCommand + sizeof(char) + sizeof(ControlCommand), file, sizeof(fileSize));
 
-	ControlCommand *t_command = ( ControlCommand *)(packageCommand + 1);
-	unsigned short *_t = ( unsigned short *)(packageCommand + 1 + sizeof(ControlCommand));
-	printf("%d\n", t_command->command);
-	printf("%zu\n",t_command->fileSize);
-	printf("%d\n", *_t);
+	sendSize = send(sock, packageCommand, sizeof(char) + sizeof(ControlCommand) + (size_t)fileSize, 0);
 
+	printf("=== [ Send Command ( %zu bytes ) ] ===\n", sendSize);
 	printf("%s\n", packageCommand);
 
-	//EVP_PKEY *pkey = NULL;
-	//void *tmp;
-	//tmp = malloc(8);
-	//memcpy(&tmp, packageCommand + formatCommandSize, 8);
-	//EVP_PKEY_print_public_fp(stdout, pkey, 0, NULL);
-	//EVP_PKEY_print_public_fp(stdout, (EVP_PKEY *)tmp, 0, NULL);
-	
-	sendSize = send(sock, &packageCommand, sizeof(char) + sizeof(ControlCommand) + (size_t)fileSize, 0);
+	printf(" in connection port -> %d\n", *(unsigned short *)file);
+
+	//EVP_PKEY_print_public_fp(stdout, (EVP_PKEY *)file, 0, NULL);
 
 	free(packageCommand);
 
@@ -229,9 +203,7 @@ void SetSocketQSize(int sock, int SendQSize, int RecvQSize){
 
 void ReceiveCommand(){
 	
-	puts(" in receive command");
-	printf(" %d ", Sock);
-	
+
 	char buf[1] = {0};
 	unsigned char *commandBuf;
 	//int command;
@@ -255,14 +227,13 @@ void ReceiveCommand(){
 	puts(" i'm in here");
 
 	if ( select(maxDescriptor, &sockSet, NULL, NULL, &selTimeout) > 0 ){
-		puts(" jajajaj ");
+
+		puts(" in select ");
 		commandBuf = malloc( sizeof(ControlCommand) );
 
 		for(;;){
 
-			recvSize = recv(servSock, buf, 1, 0);
-
-			printf(" --- > %c\n", buf[0]);
+			recvSize = recv( Sock, &buf, 1, 0);
 
 			if ( errno == EWOULDBLOCK || recvSize <= 0){
 				printf("brake with EWOULDBLOCK\n");
@@ -296,11 +267,14 @@ void ReceiveCommand(){
 					memset( file, 0x00, sizeof(controlCommand->fileSize));
 					recvSize = recv( Sock , file, controlCommand->fileSize, 0);
 
-					EVP_PKEY_print_public_fp( stdout, (EVP_PKEY *)file, 0, NULL);
+					printf("Receive File %zu\n", recvSize);
+					//EVP_PKEY_print_public_fp(stdout, (EVP_PKEY *)file, 0, NULL);
+					//printf(" in receive port -> %d\n", *(unsigned short *)file);
 				}
 
 				HandleCommand( controlCommand->command, controlCommand->fileSize, file);
 				free(commandBuf);
+				free(file);
 
 			}
 		}
@@ -315,8 +289,11 @@ void HandleCommand(const int controlMessage, const size_t fileSize, void *file){
 
 	switch(controlMessage){
 		int QSize;
+		unsigned short *peerUDPPort;
+		PeerInformation *PeerInf = GetPeerInformation();
 
 		case RSA_PUBLIC_KEY:
+			EVP_PKEY_print_public_fp(stdout, (EVP_PKEY *)file, 0, NULL);
 			break;
 
 		case SOCKET_RECEIVEQ_SIZE:
@@ -325,11 +302,13 @@ void HandleCommand(const int controlMessage, const size_t fileSize, void *file){
 			break;
 
 		case SOCKET_SENDQ_SIZE:
-			memcpy( &QSize, file, fileSize);
-			printf("Get SocketQ Size -> %d\n", QSize);
+			printf("SocketQ SIZE %d\n",*(int *)file);
+			//printf("Get SocketQ Size -> %d\n", QSize);
 			break;
 
 		case UDP_PORT:
+			//printf("Peer Port is ___ (%d)\n", *(unsigned short *)file);
+			PeerInf->PeerUDPPort = *(unsigned short *)file;
 			break;
 	}
 

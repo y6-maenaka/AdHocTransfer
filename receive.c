@@ -10,6 +10,9 @@
 
 #define SIGRTMIN 33
 
+bool transferDoneFlag = false;
+
+
 struct ThreadArgs{
 	PeerInformation PeerInf;
 	pthread_t mainThreadID;
@@ -32,9 +35,11 @@ int main(int argc, char *argv[]){
 	
 	unsigned short servPort = atoi( argv[1]);
 	
-	ServerConnection( servPort );
+	PeerInf->TCPPeerSock = ServerConnection( servPort );
 
-	sleep(10);
+	printf("serv port -> %d\n", PeerInf->PeerUDPPort);
+
+	sleep(15);
 	//struct ThreadArgs threadArgs;
 	//threadArgs.PeerInf = *PeerInf;
 	//threadArgs.mainThreadID = pthread_self();
@@ -44,8 +49,11 @@ int main(int argc, char *argv[]){
 	
 	//while(1){
 		//pause();
-		//if ( ) break;
+		//if ( transferDoneFlag ) break;
 	//}
+
+	//BlockToFile();
+	return 0;
 
 };
 
@@ -82,5 +90,6 @@ int AllowRequestBlockDoneSignal(){
 
 
 void ReceiveRequestBlockSequenceDoneSignal(){
+	transferDoneFlag = true;
 	puts("RequestBlock Done");
 };
